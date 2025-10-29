@@ -97,6 +97,7 @@ public class Config {
         public Set<String> defaultPermissions = Set.of("*");
         public boolean autoCreateAccount = true;
         public boolean skipIntro = false;
+        public boolean unlockInstances = true;
     }
     
     @Getter

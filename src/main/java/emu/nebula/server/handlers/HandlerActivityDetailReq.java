@@ -8,7 +8,6 @@ import emu.nebula.proto.Public.ActivityTrial;
 import emu.nebula.net.HandlerId;
 import emu.nebula.net.GameSession;
 
-@SuppressWarnings("unused")
 @HandlerId(NetMsgId.activity_detail_req)
 public class HandlerActivityDetailReq extends NetHandler {
 

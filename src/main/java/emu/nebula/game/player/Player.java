@@ -14,6 +14,7 @@ import emu.nebula.database.GameDatabaseObject;
 import emu.nebula.game.account.Account;
 import emu.nebula.game.character.CharacterStorage;
 import emu.nebula.game.formation.FormationManager;
+import emu.nebula.game.instance.InstanceManager;
 import emu.nebula.game.inventory.Inventory;
 import emu.nebula.game.mail.Mailbox;
 import emu.nebula.game.story.StoryManager;
@@ -69,6 +70,7 @@ public class Player implements GameDatabaseObject {
     private transient FormationManager formations;
     private transient Mailbox mailbox;
     private transient StarTowerManager starTowerManager;
+    private transient InstanceManager instanceManager;
     private transient StoryManager storyManager;
     
     @Deprecated // Morphia only
@@ -98,6 +100,7 @@ public class Player implements GameDatabaseObject {
         this.titlePrefix = 1;
         this.titleSuffix = 2;
         this.level = 1;
+        this.energy = 240;
         this.boards = new IntOpenHashSet();
         this.headIcons = new IntOpenHashSet();
         this.titles = new IntOpenHashSet();
@@ -278,6 +281,21 @@ public class Player implements GameDatabaseObject {
         
         return changes;
     }
+
+    public PlayerChangeInfo consumeEnergy(int amount, PlayerChangeInfo changes) {
+        // Check if changes is null
+        if (changes == null) {
+            changes = new PlayerChangeInfo();
+        }
+        
+        // Sanity
+        if (amount <= 0) {
+            return changes;
+        }
+        
+        // TODO
+        return changes;
+    }
     
     public void sendMessage(String string) {
         // Empty
@@ -286,6 +304,9 @@ public class Player implements GameDatabaseObject {
     // Login
     
     public void onLoad() {
+        // Debug 
+        this.energy = 240;
+        
         // Load from database
         this.getCharacters().loadFromDatabase();
         this.getInventory().loadFromDatabase();
@@ -308,6 +329,13 @@ public class Player implements GameDatabaseObject {
             this.starTowerManager = new StarTowerManager(this);
         } else {
             this.starTowerManager.setPlayer(this);
+        }
+
+        this.instanceManager = Nebula.getGameDatabase().getObjectByField(InstanceManager.class, "_id", this.getUid());
+        if (this.instanceManager == null) {
+            this.instanceManager = new InstanceManager(this);
+        } else {
+            this.instanceManager.setPlayer(this);
         }
         
         this.storyManager = Nebula.getGameDatabase().getObjectByField(StoryManager.class, "_id", this.getUid());
@@ -342,7 +370,7 @@ public class Player implements GameDatabaseObject {
             .getMutableEnergy()
                 .setUpdateTime(Nebula.getCurrentTime())
                 .setNextDuration(60)
-                .setPrimary(240)
+                .setPrimary(this.getEnergy())
                 .setIsPrimary(true);
         
         // Add characters/discs/res/items
@@ -441,6 +469,9 @@ public class Player implements GameDatabaseObject {
         
         // Extra
         proto.setAchievements(new byte[64]);
+        
+        // Add instance
+        this.getInstanceManager().toProto(proto);
         
         proto.getMutableVampireSurvivorRecord()
             .getMutableSeason();

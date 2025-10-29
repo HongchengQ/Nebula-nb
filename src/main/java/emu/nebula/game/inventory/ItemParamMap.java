@@ -70,7 +70,7 @@ public class ItemParamMap extends Int2IntOpenHashMap {
         return list;
     }
 
-    public Stream<ItemTpl> itemTemplateStream() {
+    public Stream<ItemTpl> toItemTemplateStream() {
         return getEntrySet()
                 .stream()
                 .map(e -> ItemTpl.newInstance().setTid(e.getIntKey()).setQty(e.getIntValue()));

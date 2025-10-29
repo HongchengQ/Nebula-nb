@@ -9,6 +9,7 @@ public class GameConstants {
     public static final int INTRO_GUIDE_ID = 1;
 
     public static final int GOLD_ITEM_ID = 1;
+    public static final int EXP_ITEM_ID = 21;
     
     public static final int MAX_FORMATIONS = 5;
     

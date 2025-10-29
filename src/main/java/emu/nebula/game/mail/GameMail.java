@@ -77,7 +77,7 @@ public class GameMail {
                 .setDeadline(this.getExpiry());
         
         if (this.getAttachments() != null) {
-            this.getAttachments().itemTemplateStream()
+            this.getAttachments().toItemTemplateStream()
                 .forEach(proto::addAttachments);
         }
         
