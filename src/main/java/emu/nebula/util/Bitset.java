@@ -49,7 +49,7 @@ public class Bitset {
             System.arraycopy(oldData, 0, this.data, 0, oldData.length);
         }
         
-        this.data[longArrayOffset] &= (1L << bytePosition);
+        this.data[longArrayOffset] = ~(1L << bytePosition);
     }
     
     public byte[] toByteArray() {
