@@ -13,6 +13,7 @@ import emu.nebula.net.NetMsgId;
 import emu.nebula.proto.Notify.Skin;
 import emu.nebula.proto.Public.Item;
 import emu.nebula.proto.Public.Res;
+import emu.nebula.proto.Public.Title;
 import emu.nebula.proto.Public.UI32;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
@@ -371,6 +372,31 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
                 // Check
                 if (skinData.getType() >= 3) {
                     this.addSkin(id);
+                }
+            }
+            case Title -> {
+                // Cannot remove titles
+                if (amount <= 0) {
+                    break;
+                }
+                
+                // Get title data
+                if (data.getTitleData() == null) {
+                    break;
+                }
+                
+                int titleId = data.getTitleData().getId();
+                
+                // Make sure we don't already have this title
+                if (!this.getTitles().contains(titleId)) {
+                    // Add title
+                    this.addTitle(titleId);
+                    
+                    // Add to change info
+                    var proto = Title.newInstance()
+                            .setTitleId(titleId);
+                    
+                    change.add(proto);
                 }
             }
             default -> {
