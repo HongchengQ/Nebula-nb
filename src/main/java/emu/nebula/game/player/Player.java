@@ -505,6 +505,10 @@ public class Player implements GameDatabaseObject {
     
     // Next packages
     
+    public boolean hasNextPackages() {
+        return this.getNextPackages().size() > 0;
+    }
+    
     public void addNextPackage(int msgId, ProtoMessage<?> proto) {
         this.getNextPackages().add(new NetMsgPacket(msgId, proto));
     }

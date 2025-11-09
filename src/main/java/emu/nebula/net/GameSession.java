@@ -11,6 +11,7 @@ import emu.nebula.game.account.Account;
 import emu.nebula.game.account.AccountHelper;
 import emu.nebula.game.player.Player;
 import emu.nebula.proto.Public.MailState;
+import emu.nebula.proto.Public.Nil;
 import emu.nebula.util.AeadHelper;
 import emu.nebula.util.Utils;
 import lombok.Getter;
@@ -140,25 +141,27 @@ public class GameSession {
     }
     
     // Packet encoding helper functions
-    
-    public byte[] encodeMsg(int msgId, byte[] packet) {
-        return PacketHelper.encodeMsg(msgId, packet);
-    }
 
     @SneakyThrows
     public byte[] encodeMsg(int msgId, ProtoMessage<?> proto) {
         // Add any extra data
-        this.addNextPackage(proto);
+        this.addNextPackages(proto);
         
         // Encode to message like normal
         return PacketHelper.encodeMsg(msgId, proto);
     }
     
     public byte[] encodeMsg(int msgId) {
+        // Create a proto so we can add next packages
+        if (this.getPlayer() != null && this.getPlayer().hasNextPackages()) {
+            return this.encodeMsg(msgId, Nil.newInstance());
+        }
+        
+        // Encode simple message
         return PacketHelper.encodeMsg(msgId);
     }
     
-    private void addNextPackage(ProtoMessage<?> proto) {
+    private void addNextPackages(ProtoMessage<?> proto) {
         // Sanity check and make sure proto has a "nextPackage" field
         if (this.getPlayer() == null || !PacketHelper.hasNextPackageMethod(proto)) {
             return;
