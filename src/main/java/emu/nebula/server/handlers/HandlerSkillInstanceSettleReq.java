@@ -31,7 +31,7 @@ public class HandlerSkillInstanceSettleReq extends NetHandler {
         var changes = player.getInstanceManager().settleInstance(
                 data,
                 QuestCondType.SkillInstanceClearTotal,
-                player.getInstanceManager().getSkillInstanceLog(),
+                player.getProgress().getSkillInstanceLog(),
                 "skillInstanceLog",
                 req.getStar()
         );

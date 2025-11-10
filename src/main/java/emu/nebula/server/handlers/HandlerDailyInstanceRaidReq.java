@@ -37,7 +37,7 @@ public class HandlerDailyInstanceRaidReq extends NetHandler {
         var change = session.getPlayer().getInstanceManager().sweepInstance(
                 data,
                 QuestCondType.DailyInstanceClearTotal,
-                session.getPlayer().getInstanceManager().getDailyInstanceLog(),
+                session.getPlayer().getProgress().getDailyInstanceLog(),
                 req.getRewardType(),
                 req.getTimes()
         );

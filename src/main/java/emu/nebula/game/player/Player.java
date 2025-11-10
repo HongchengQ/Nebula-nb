@@ -72,6 +72,8 @@ public class Player implements GameDatabaseObject {
     // Managers
     private final transient CharacterStorage characters;
     private final transient GachaManager gachaManager;
+    private final transient StarTowerManager starTowerManager;
+    private final transient InstanceManager instanceManager;
     private final transient InfinityTowerManager infinityTowerManager;
     private final transient VampireSurvivorManager vampireSurvivorManager;
     private final transient ScoreBossManager scoreBossManager;
@@ -80,8 +82,7 @@ public class Player implements GameDatabaseObject {
     private transient Inventory inventory;
     private transient FormationManager formations;
     private transient Mailbox mailbox;
-    private transient StarTowerManager starTowerManager;
-    private transient InstanceManager instanceManager;
+    private transient PlayerProgress progress;
     private transient StoryManager storyManager;
     private transient QuestManager questManager;
     
@@ -93,6 +94,8 @@ public class Player implements GameDatabaseObject {
         // Init player managers
         this.characters = new CharacterStorage(this);
         this.gachaManager = new GachaManager(this);
+        this.starTowerManager = new StarTowerManager(this);
+        this.instanceManager = new InstanceManager(this);
         this.infinityTowerManager = new InfinityTowerManager(this);
         this.vampireSurvivorManager = new VampireSurvivorManager(this);
         this.scoreBossManager = new ScoreBossManager(this);
@@ -482,18 +485,18 @@ public class Player implements GameDatabaseObject {
     public void onLoad() {
         // Load from database
         this.getCharacters().loadFromDatabase();
+        this.getStarTowerManager().loadFromDatabase();
         
-        // Load inventory first
+        // Load inventory before referenced classes
         if (this.inventory == null) {
             this.inventory = this.loadManagerFromDatabase(Inventory.class);
         }
         this.getInventory().loadFromDatabase();
         
-        // Load referenced classes
+        // Load referenced classes from the database
         this.formations = this.loadManagerFromDatabase(FormationManager.class);
         this.mailbox = this.loadManagerFromDatabase(Mailbox.class);
-        this.starTowerManager = this.loadManagerFromDatabase(StarTowerManager.class);
-        this.instanceManager = this.loadManagerFromDatabase(InstanceManager.class);
+        this.progress = this.loadManagerFromDatabase(PlayerProgress.class);
         this.storyManager = this.loadManagerFromDatabase(StoryManager.class);
         this.questManager = this.loadManagerFromDatabase(QuestManager.class);
     }
@@ -646,8 +649,8 @@ public class Player implements GameDatabaseObject {
             proto.addDictionaries(dictionaryProto);
         }
         
-        // Add instances
-        this.getInstanceManager().toProto(proto);
+        // Add progress
+        this.getProgress().toProto(proto);
         
         // Handbook
         proto.addHandbook(this.getCharacters().getCharacterHandbook());

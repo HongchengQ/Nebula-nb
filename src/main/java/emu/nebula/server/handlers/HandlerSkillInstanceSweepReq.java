@@ -32,7 +32,7 @@ public class HandlerSkillInstanceSweepReq extends NetHandler {
         var change = session.getPlayer().getInstanceManager().sweepInstance(
                 data,
                 QuestCondType.SkillInstanceClearTotal,
-                session.getPlayer().getInstanceManager().getSkillInstanceLog(),
+                session.getPlayer().getProgress().getSkillInstanceLog(),
                 0,
                 req.getTimes()
         );

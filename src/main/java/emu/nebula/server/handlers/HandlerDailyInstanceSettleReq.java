@@ -31,7 +31,7 @@ public class HandlerDailyInstanceSettleReq extends NetHandler {
         var changes = player.getInstanceManager().settleInstance(
                 data,
                 QuestCondType.DailyInstanceClearTotal,
-                player.getInstanceManager().getDailyInstanceLog(),
+                player.getProgress().getDailyInstanceLog(),
                 "dailyInstanceLog",
                 req.getStar()
         );

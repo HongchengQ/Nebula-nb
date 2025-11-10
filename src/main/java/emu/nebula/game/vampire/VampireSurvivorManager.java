@@ -1,35 +1,18 @@
 package emu.nebula.game.vampire;
 
-import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Id;
 import emu.nebula.data.GameData;
-import emu.nebula.database.GameDatabaseObject;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerManager;
 
 import lombok.Getter;
 
 @Getter
-@Entity(value = "vampire", useDiscriminator = false)
-public class VampireSurvivorManager extends PlayerManager implements GameDatabaseObject {
-    @Id
-    private int uid;
-    
+public class VampireSurvivorManager extends PlayerManager {
     // Game
     private transient VampireSurvivorGame game;
     
-    // TODO talents
-    
-    @Deprecated // Morphia only
-    public VampireSurvivorManager() {
-        
-    }
-    
     public VampireSurvivorManager(Player player) {
         super(player);
-        this.uid = player.getUid();
-        
-        //this.save();
     }
     
     public VampireSurvivorGame apply(int levelId) {

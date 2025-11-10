@@ -1,44 +1,29 @@
 package emu.nebula.game.tower;
 
-import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Id;
 import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
-import emu.nebula.database.GameDatabaseObject;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
 import emu.nebula.game.player.PlayerManager;
 import emu.nebula.game.quest.QuestCondType;
 import emu.nebula.proto.StarTowerApply.StarTowerApplyReq;
+
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
 import lombok.Getter;
 
 @Getter
-@Entity(value = "star_tower", useDiscriminator = false)
-public class StarTowerManager extends PlayerManager implements GameDatabaseObject {
-    @Id
-    private int uid;
-    
-    // TODO add tower talents here
-    
+public class StarTowerManager extends PlayerManager {
     // Tower game instance
-    private transient StarTowerGame game;
+    private StarTowerGame game;
     
     // Tower builds
-    private transient Long2ObjectMap<StarTowerBuild> builds;
-    private transient StarTowerBuild lastBuild;
-    
-    @Deprecated // Morphia only
-    public StarTowerManager() {
-        
-    }
+    private Long2ObjectMap<StarTowerBuild> builds;
+    private StarTowerBuild lastBuild;
     
     public StarTowerManager(Player player) {
         super(player);
-        this.uid = player.getUid();
-        
-        this.save();
     }
     
     public Long2ObjectMap<StarTowerBuild> getBuilds() {
@@ -167,7 +152,7 @@ public class StarTowerManager extends PlayerManager implements GameDatabaseObjec
     
     // Database
     
-    private void loadFromDatabase() {
+    public void loadFromDatabase() {
         this.builds = new Long2ObjectOpenHashMap<>();
         
         Nebula.getGameDatabase().getObjects(StarTowerBuild.class, "playerUid", getPlayerUid()).forEach(build -> {

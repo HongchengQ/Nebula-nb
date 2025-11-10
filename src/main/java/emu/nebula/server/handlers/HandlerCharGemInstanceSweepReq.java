@@ -32,7 +32,7 @@ public class HandlerCharGemInstanceSweepReq extends NetHandler {
         var change = session.getPlayer().getInstanceManager().sweepInstance(
                 data,
                 QuestCondType.CharGemInstanceClearTotal,
-                session.getPlayer().getInstanceManager().getCharGemLog(),
+                session.getPlayer().getProgress().getCharGemLog(),
                 0,
                 req.getTimes()
         );

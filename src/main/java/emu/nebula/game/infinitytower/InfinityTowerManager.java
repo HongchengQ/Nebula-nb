@@ -1,6 +1,5 @@
 package emu.nebula.game.infinitytower;
 
-import dev.morphia.annotations.Id;
 import emu.nebula.data.GameData;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
@@ -10,22 +9,11 @@ import lombok.Getter;
 
 @Getter
 public class InfinityTowerManager extends PlayerManager {
-    @Id
-    private int uid;
-    
-    private transient int levelId;
-    private transient long buildId;
-    
-    @Deprecated // Morphia only
-    public InfinityTowerManager() {
-        
-    }
+    private int levelId;
+    private long buildId;
     
     public InfinityTowerManager(Player player) {
         super(player);
-        this.uid = player.getUid();
-        
-        //this.save();
     }
     
     public int getBountyLevel() {

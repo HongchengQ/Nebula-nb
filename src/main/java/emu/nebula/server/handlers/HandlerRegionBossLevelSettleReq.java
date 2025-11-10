@@ -31,7 +31,7 @@ public class HandlerRegionBossLevelSettleReq extends NetHandler {
         var changes = player.getInstanceManager().settleInstance(
                 data,
                 QuestCondType.RegionBossClearTotal,
-                player.getInstanceManager().getRegionBossLog(),
+                player.getProgress().getRegionBossLog(),
                 "regionBossLog",
                 req.getStar()
         );

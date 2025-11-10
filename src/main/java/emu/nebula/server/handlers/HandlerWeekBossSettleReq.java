@@ -31,7 +31,7 @@ public class HandlerWeekBossSettleReq extends NetHandler {
         var changes = player.getInstanceManager().settleInstance(
                 data,
                 QuestCondType.WeekBoosClearSpecificDifficultyAndTotal,
-                player.getInstanceManager().getWeekBossLog(),
+                player.getProgress().getWeekBossLog(),
                 "weekBossLog",
                 req.getResult() ? 1 : 0
         );

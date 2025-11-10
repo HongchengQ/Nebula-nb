@@ -31,7 +31,7 @@ public class HandlerCharGemInstanceSettleReq extends NetHandler {
         var changes = player.getInstanceManager().settleInstance(
                 data,
                 QuestCondType.CharGemInstanceClearTotal,
-                player.getInstanceManager().getCharGemLog(),
+                player.getProgress().getCharGemLog(),
                 "charGemLog",
                 req.getStar()
         );

@@ -32,7 +32,7 @@ public class HandlerRegionBossLevelSweepReq extends NetHandler {
         var change = session.getPlayer().getInstanceManager().sweepInstance(
                 data,
                 QuestCondType.RegionBossClearTotal,
-                session.getPlayer().getInstanceManager().getRegionBossLog(),
+                session.getPlayer().getProgress().getRegionBossLog(),
                 0,
                 req.getTimes()
         );
