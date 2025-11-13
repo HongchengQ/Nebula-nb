@@ -678,6 +678,11 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
             change = new PlayerChangeInfo();
         }
         
+        // Sanity check
+        if (count <= 0) {
+            return change;
+        }
+        
         // Get item data
         var data = GameData.getItemDataTable().get(id);
         if (data == null || data.getUseParams() == null) {
@@ -696,7 +701,7 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
         switch (data.getUseAction()) {
             case 2 -> {
                 // Add items
-                this.addItems(data.getUseParams(), change);
+                this.addItems(data.getUseParams().mulitply(count), change);
                 
                 // Success
                 success = true;
