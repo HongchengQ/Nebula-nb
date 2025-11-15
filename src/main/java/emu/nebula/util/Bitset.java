@@ -13,6 +13,14 @@ public class Bitset {
     public Bitset(long[] longArray) {
         this.data = longArray;
     }
+
+    public boolean isEmpty() {
+        return this.data.length == 1 && this.data[0] == 0L;
+    }
+    
+    public void clear() {
+        this.data = new long[1];
+    }
     
     public boolean isSet(int index) {
         int longArrayOffset = (int) Math.floor((index - 1) / 64D);

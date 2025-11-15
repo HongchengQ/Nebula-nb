@@ -103,6 +103,7 @@ public class GameData {
     
     // Vampire survivor
     @Getter private static DataTable<VampireSurvivorDef> VampireSurvivorDataTable = new DataTable<>();
+    @Getter private static DataTable<VampireTalentDef> VampireTalentDataTable = new DataTable<>();
     
     // Score boss
     @Getter private static DataTable<ScoreBossControlDef> ScoreBossControlDataTable = new DataTable<>();

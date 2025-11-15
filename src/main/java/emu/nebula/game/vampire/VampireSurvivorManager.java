@@ -35,6 +35,74 @@ public class VampireSurvivorManager extends PlayerManager {
         return this.getProgress().getFateCards().size() * 5;
     }
     
+    public int getUsedTalentPoints() {
+        int amount = 0;
+        
+        for (var talent : GameData.getVampireTalentDataTable()) {
+            if (this.getTalents().isSet(talent.getId())) {
+                amount += talent.getPoint();
+            }
+        }
+        
+        return amount;
+    }
+    
+    public boolean unlockTalent(int id) {
+        // Get talent data
+        var talent = GameData.getVampireTalentDataTable().get(id);
+        if (talent == null) {
+            return false;
+        }
+        
+        // Check to make sure talent isnt already set
+        if (this.getTalents().isSet(talent.getId())) {
+            return false;
+        }
+        
+        // Make sure any prerequisite talent is set
+        if (talent.getPrev() != null) {
+            boolean hasPrev = false;
+            
+            for (int prevTalent : talent.getPrev()) {
+                if (this.getTalents().isSet(prevTalent)) {
+                    hasPrev = true;
+                }
+            }
+            
+            if (!hasPrev) {
+                return false;
+            }
+        }
+        
+        // Calculate available points
+        int points = this.getTalentPoints() - this.getUsedTalentPoints();
+        
+        // Make sure we have enough points to unlock this talent
+        if (talent.getPoint() > points) {
+            return false;
+        }
+        
+        // Set & save in database
+        this.getTalents().setBit(talent.getId());
+        Nebula.getGameDatabase().update(this.getProgress(), this.getPlayerUid(), "vampireTalents", this.getTalents());
+        
+        // Success
+        return true;
+    }
+    
+    public void resetTalents() {
+        // Sanity check to prevent resetting empty talents
+        if (this.getTalents().isEmpty()) {
+            return;
+        }
+        
+        // Clear talents
+        this.getTalents().clear();
+        
+        // Save in database
+        Nebula.getGameDatabase().update(this.getProgress(), this.getPlayerUid(), "vampireTalents", this.getTalents());
+    }
+    
     public VampireSurvivorGame apply(int levelId, RepeatedLong builds) {
         // Get data
         var data = GameData.getVampireSurvivorDataTable().get(levelId);
