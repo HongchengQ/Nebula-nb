@@ -15,6 +15,7 @@ import emu.nebula.data.ResourceLoader;
 import emu.nebula.database.DatabaseManager;
 import emu.nebula.game.GameContext;
 import emu.nebula.net.PacketHelper;
+import emu.nebula.plugin.PluginManager;
 import emu.nebula.server.HttpServer;
 import emu.nebula.util.Handbook;
 import emu.nebula.util.JsonUtils;
@@ -38,6 +39,7 @@ public class Nebula {
     
     @Getter private static GameContext gameContext;
     @Getter private static CommandManager commandManager;
+    @Getter private static PluginManager pluginManager;
     
     public static void main(String[] args) {
         // Start Server
@@ -50,24 +52,33 @@ public class Nebula {
         // Load config + commands
         Nebula.loadConfig();
         
+        // Load plugin manager
+        Nebula.pluginManager = new PluginManager();
+
+        try {
+            Nebula.getPluginManager().loadPlugins();
+        } catch (Exception exception) {
+            Nebula.getLogger().error("Unable to load plugins.", exception);
+        }
+        
         // Parse arguments
         for (String arg : args) {
             switch (arg) {
-            case "-login":
-                serverType = ServerType.LOGIN;
-                break;
-            case "-game":
-                serverType = ServerType.GAME;
-                break;
-            case "-nohandbook":
-            case "-skiphandbook":
-                generateHandbook = false;
-                break;
-            case "-database":
-                // Database only
-                DatabaseManager.startInternalMongoServer(Nebula.getConfig().getInternalMongoServer());
-                Nebula.getLogger().info("Running local Mongo server at " + DatabaseManager.getServer().getConnectionString());
-                return;
+                case "-login":
+                    serverType = ServerType.LOGIN;
+                    break;
+                case "-game":
+                    serverType = ServerType.GAME;
+                    break;
+                case "-nohandbook":
+                case "-skiphandbook":
+                    generateHandbook = false;
+                    break;
+                case "-database":
+                    // Database only
+                    DatabaseManager.startInternalMongoServer(Nebula.getConfig().getInternalMongoServer());
+                    Nebula.getLogger().info("Running local Mongo server at " + DatabaseManager.getServer().getConnectionString());
+                    return;
             }
         }
         
@@ -102,6 +113,9 @@ public class Nebula {
         } catch (Exception exception) {
             Nebula.getLogger().error("Unable to start the HTTP server.", exception);
         }
+        
+        // Enable plugins
+        Nebula.getPluginManager().enablePlugins();
         
         // Start console
         Nebula.startConsole();
