@@ -63,6 +63,7 @@ tmp/
 /plugins
 /proto
 /resources
+/web
 
 # Compiled
 /*.jar

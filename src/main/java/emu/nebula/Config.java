@@ -24,6 +24,7 @@ public class Config {
 
     public int customDataVersion = 0;
     public String resourceDir = "./resources";
+    public String webFilesDir = "./web";
     public String patchListPath = "./patchlist.json";
 
     @Getter

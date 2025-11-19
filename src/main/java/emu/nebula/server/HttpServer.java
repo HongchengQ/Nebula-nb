@@ -19,6 +19,7 @@ import emu.nebula.util.JsonUtils;
 import io.javalin.Javalin;
 import io.javalin.http.ContentType;
 import io.javalin.http.Context;
+import io.javalin.http.staticfiles.Location;
 import lombok.Getter;
 
 @Getter
@@ -32,8 +33,13 @@ public class HttpServer {
     private byte[] diff;
     
     public HttpServer(ServerType type) {
-        this.app = Javalin.create();
         this.type = type;
+        this.app = Javalin.create(javalinConfig -> {
+            var staticFilesDir = new File(Nebula.getConfig().getWebFilesDir());
+            if (staticFilesDir.exists()) {
+                javalinConfig.staticFiles.add(staticFilesDir.getPath(), Location.EXTERNAL);
+            }
+        });
 
         this.loadPatchList();
         this.addRoutes();
