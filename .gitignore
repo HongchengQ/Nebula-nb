@@ -79,3 +79,5 @@ patchlist.json
 *.p12
 BuildConfig.java
 Test.java
+
+JSON output
