@@ -6,8 +6,23 @@ import emu.nebula.game.inventory.ItemParam;
 import emu.nebula.util.WeightedList;
 
 public class GameConstants {
-    private static final int DATA_VERSION = 60;
-    private static final String VERSION = "1.2.0";
+    public static final String VERSION = "1.2.0";
+    public static int DATA_VERSION = 0;
+    
+    // Set data versions for each region
+    static {
+        RegionConfig.getRegion("global")
+            .setDataVersion(60);
+        
+        RegionConfig.getRegion("kr")
+            .setDataVersion(67);
+        
+        RegionConfig.getRegion("jp")
+            .setDataVersion(63);
+        
+        RegionConfig.getRegion("tw")
+            .setDataVersion(61);
+    }
     
     public static final ZoneId UTC_ZONE = ZoneId.of("UTC");
     
@@ -57,7 +72,14 @@ public class GameConstants {
     // Helper functions
     
     public static String getGameVersion() {
-        return VERSION + "." + getDataVersion() + " (" + Nebula.getConfig().getRegion().toUpperCase() + ")";
+        // Load data version
+        var region = RegionConfig.getRegion(Nebula.getConfig().getRegion());
+        
+        // Set data version from region
+        GameConstants.DATA_VERSION = region.getDataVersion();
+        
+        // Init game version string
+        return VERSION + "." + getDataVersion() + " (" + region.getName().toUpperCase() + ")";
     }
     
     public static int getDataVersion() {

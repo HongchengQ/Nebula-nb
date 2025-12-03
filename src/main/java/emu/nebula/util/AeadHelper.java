@@ -19,8 +19,7 @@ import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
 import org.bouncycastle.crypto.params.*;
 
 import emu.nebula.Nebula;
-import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import emu.nebula.RegionConfig;
 
 // Official Name: AeadTool
 public class AeadHelper {
@@ -34,29 +33,31 @@ public class AeadHelper {
     public static byte[] serverGarbleKey = null;
     public static byte[] serverMetaKey = null;
     
-    private static final Object2ObjectMap<String, String[]> keys = new Object2ObjectOpenHashMap<>();
+    static {
+        RegionConfig.getRegion("global")
+            .setServerMetaKey("ma5Dn2FhC*Xhxy%c")
+            .setServerGarbleKey("xNdVF^XTa6T3HCUATMQ@sKMLzAw&%L!3");
+        
+        RegionConfig.getRegion("kr")
+            .setServerMetaKey("U9cjHuwGDDx&$drn")
+            .setServerGarbleKey("25hdume9H#*6hHn@d9hSF7tekTwN#JYj");
+        
+        RegionConfig.getRegion("jp")
+            .setServerMetaKey("ZnUFA@S9%4KyoryM")
+            .setServerGarbleKey("yX5Gt64PVvVH6$qwBXaPJC*LZKoK5mYh");
+        
+        RegionConfig.getRegion("tw")
+            .setServerMetaKey("owGYVDmfHrxi^4pm")
+            .setServerGarbleKey("N&mfco452ZH5!nE3s&o5uxB57UGPENVo");
+    }
     
     public static void loadKeys() {
-        // Load keys
-        keys.put("global", new String[] {
-            "ma5Dn2FhC*Xhxy%c",
-            "xNdVF^XTa6T3HCUATMQ@sKMLzAw&%L!3"
-        });
-        keys.put("kr", new String[] {
-            "U9cjHuwGDDx&$drn",
-            "25hdume9H#*6hHn@d9hSF7tekTwN#JYj"
-        });
-        
         // Get key data
-        var keyData = keys.get(Nebula.getConfig().getRegion().toLowerCase());
-        
-        if (keyData == null) {
-            keyData = keys.get("global"); // Default region
-        }
+        var region = RegionConfig.getRegion(Nebula.getConfig().getRegion());
         
         // Set keys
-        serverMetaKey = keyData[0].getBytes(StandardCharsets.US_ASCII);
-        serverGarbleKey = keyData[1].getBytes(StandardCharsets.US_ASCII);
+        serverMetaKey = region.getServerMetaKey().getBytes(StandardCharsets.US_ASCII);
+        serverGarbleKey = region.getServerGarbleKey().getBytes(StandardCharsets.US_ASCII);
     }
     
     public static byte[] generateBytes(int size) {
