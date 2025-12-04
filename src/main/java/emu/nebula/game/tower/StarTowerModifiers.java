@@ -19,6 +19,12 @@ public class StarTowerModifiers {
     // Bonus max potential level
     private int bonusMaxPotentialLevel;
     
+    // Shop
+    private int shopGoodsCount;
+    
+    private int shopRerollCount;
+    private int shopRerollPrice;
+    
     public StarTowerModifiers(StarTowerGame game) {
         this.game = game;
         
@@ -40,6 +46,28 @@ public class StarTowerModifiers {
             this.bonusMaxPotentialLevel = 6;
         } else if (this.hasGrowthNode(20601)) {
             this.bonusMaxPotentialLevel = 4;
+        }
+        
+        // Shop
+        if (this.hasGrowthNode(20702)) {
+            this.shopGoodsCount = 8;
+        } else if (this.hasGrowthNode(20402)) {
+            this.shopGoodsCount = 6;
+        } else if (this.hasGrowthNode(10402)) {
+            this.shopGoodsCount = 4;
+        } else {
+            this.shopGoodsCount = 2;
+        }
+        
+        if (this.hasGrowthNode(20902)) {
+            this.shopRerollCount++;
+        }
+        if (this.hasGrowthNode(30601)) {
+            this.shopRerollCount++;
+        }
+        
+        if (this.shopRerollCount > 0) {
+            this.shopRerollPrice = 100;
         }
     }
     
@@ -63,5 +91,9 @@ public class StarTowerModifiers {
 
     public void setFreeStrengthen(boolean b) {
         this.freeStrengthen = b;
+    }
+
+    public void consumeShopReroll() {
+        this.shopRerollCount = Math.max(this.shopRerollCount - 1, 0);
     }
 }

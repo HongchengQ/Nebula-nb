@@ -1,10 +1,10 @@
 package emu.nebula.game.tower.cases;
 
 import emu.nebula.GameConstants;
-import emu.nebula.game.tower.room.StarTowerBaseRoom;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractReq;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractResp;
+
 import lombok.Getter;
 
 @Getter
@@ -14,10 +14,8 @@ public class StarTowerStrengthenMachineCase extends StarTowerBaseCase {
     private int times;
     
     @Override
-    public void register(StarTowerBaseRoom room) {
-        super.register(room);
-        
-        // Also set strengthen price
+    public void onRegister() {
+        // Set strengthen price
         this.free = this.getModifiers().isFreeStrengthen();
         this.discount = this.getModifiers().getStrengthenDiscount();
     }

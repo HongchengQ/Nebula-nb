@@ -440,7 +440,7 @@ public class StarTowerGame {
         // Create shop npc if this is the last room
         if (this.isOnFinalFloor()) {
             // Create hawker case (shop)
-            cases.add(new StarTowerHawkerCase(this));
+            cases.add(new StarTowerHawkerCase());
             // Create strengthen machine
             if (this.getModifiers().isEnableEndStrengthen()) {
                 cases.add(new StarTowerStrengthenMachineCase());

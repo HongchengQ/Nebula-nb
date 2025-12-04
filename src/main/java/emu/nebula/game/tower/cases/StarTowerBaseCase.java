@@ -27,13 +27,18 @@ public abstract class StarTowerBaseCase {
     public StarTowerModifiers getModifiers() {
         return this.getGame().getModifiers();
     }
+    
+    public abstract CaseType getType();
 
     public void register(StarTowerBaseRoom room) {
         this.game = room.getGame();
         this.id = room.getNextCaseId();
+        this.onRegister();
     }
     
-    public abstract CaseType getType();
+    public void onRegister() {
+        
+    }
     
     public abstract StarTowerInteractResp interact(StarTowerInteractReq req, StarTowerInteractResp rsp);
     

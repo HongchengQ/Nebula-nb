@@ -17,7 +17,7 @@ public class StarTowerHawkerRoom extends StarTowerBaseRoom {
     @Override
     public void onEnter() {
         // Create hawker case (shop)
-        this.addCase(new StarTowerHawkerCase(this.getGame()));
+        this.addCase(new StarTowerHawkerCase());
         
         // Create strengthen machine
         if (this.getModifiers().isEnableShopStrengthen()) {
