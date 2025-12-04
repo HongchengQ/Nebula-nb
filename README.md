@@ -29,6 +29,14 @@ For any extra support, questions, or discussions, check out our [Discord](https:
 ### Not implemented
 - Events
 
+### Supported regions
+
+Nebula supports the global PC client by default. If you want to switch regions, you need to change the `region` field in the Nebula config.
+
+Current supported regions (PC): `GLOBAL`, `KR`, `JP`, `TW`
+
+You may need to change the data version when switching regions. The `customDataVersion` field should match the the data version of your client, which is usually the last number of your client's version string (top left of your login screen). Example: 1.0.0.42 = data version 42.
+
 # Running the server and client
 
 ### Prerequisites
@@ -49,17 +57,24 @@ For any extra support, questions, or discussions, check out our [Discord](https:
 3. Copy and paste the following code into the Fiddlerscript tab of Fiddler Classic. Remember to save the fiddler script after you copy and paste it:
 
 ```
-import System;
-import System.Windows.Forms;
 import Fiddler;
-import System.Text.RegularExpressions;
 
 class Handlers
 {
+    static var list = [
+        ".yostarplat.com",
+        ".stellasora.global",
+        ".stellasora.kr",
+        ".stellasora.jp",
+        ".stargazer-games.com"
+    ];
+
     static function OnBeforeRequest(oS: Session) {
-        if (oS.host.EndsWith(".yostarplat.com") || oS.host.EndsWith(".stellasora.global")) {
-            oS.oRequest.headers.UriScheme = "http";
-            oS.host = "localhost"; // This can also be replaced with another IP address.
+        for (var i = 0; i < list.length; i++) {
+            if (oS.host.EndsWith(list[i])) {
+                oS.oRequest.headers.UriScheme = "http";
+                oS.host = "localhost"; // This can also be replaced with another IP address
+            }
         }
     }
 };
@@ -67,14 +82,6 @@ class Handlers
 
 4. If `autoCreateAccount` is set to true in the config, then you can skip this step. Otherwise, type `/account create [account email]` in the server console to create an account.
 5. Login with your account email, the code field is ignored by the server and can be set to anything.
-
-If you are not on the global client, `.stellasora.global` in the fiddlerscript may need to be changed to match the endpoint your client connects to.
-
-### Supported regions
-
-Nebula supports the global client by default. If you want to switch regions, you need to change the `customDataVersion` and `region` fields in the Nebula config. The `customDataVersion` field should match the the data version of your client, which is usually the last number of your client's version string (top left of your login screen). Example: 1.0.0.42 = data version 42.
-
-Current supported regions: `global`, `kr`
 
 ### Server commands
 Server commands need to be run in the server console OR in the signature edit menu of your profile.

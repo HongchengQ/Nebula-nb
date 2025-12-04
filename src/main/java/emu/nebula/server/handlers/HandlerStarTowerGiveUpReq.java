@@ -20,7 +20,7 @@ public class HandlerStarTowerGiveUpReq extends NetHandler {
         // Build response
         var rsp = StarTowerGiveUpResp.newInstance()
                 .setBuild(game.getBuild().toProto())
-                .setFloor(game.getFloor());
+                .setFloor(game.getFloorCount());
         
         rsp.getMutableChange();
         

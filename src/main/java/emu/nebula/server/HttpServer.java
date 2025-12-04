@@ -141,6 +141,9 @@ public class HttpServer {
         if (this.getType().runGame()) {
             this.addGameServerRoutes();
         }
+        
+        // Custom api route(s)
+        getApp().post("/api/command", new RemoteHandler());
 
         // Exception handler
         getApp().exception(Exception.class, (e, c) -> {
@@ -154,8 +157,8 @@ public class HttpServer {
     private void addLoginServerRoutes() {
         // https://en-sdk-api.yostarplat.com/
         getApp().post("/common/config", new CommonConfigHandler(this));
-        getApp().post("/common/version", new HttpJsonResponse(
-                "{\"Code\":200,\"Data\":{\"Agreement\":[{\"Version\":\"0.1\",\"Type\":\"user_agreement\",\"Title\":\"用户协议\",\"Content\":\"\",\"Lang\":\"en\"},{\"Version\":\"0.1\",\"Type\":\"privacy_agreement\",\"Title\":\"隐私政策\",\"Content\":\"\",\"Lang\":\"en\"}],\"ErrorCode\":\"4.4\"},\"Msg\":\"OK\"}"));
+        getApp().post("/common/client-code", new CommonClientCodeHandler());
+        getApp().post("/common/version", new HttpJsonResponse("{\"Code\":200,\"Data\":{\"Agreement\":[{\"Version\":\"0.1\",\"Type\":\"user_agreement\",\"Title\":\"用户协议\",\"Content\":\"\",\"Lang\":\"en\"},{\"Version\":\"0.1\",\"Type\":\"privacy_agreement\",\"Title\":\"隐私政策\",\"Content\":\"\",\"Lang\":\"en\"}],\"ErrorCode\":\"4.4\"},\"Msg\":\"OK\"}"));
 
         getApp().post("/user/detail", new UserLoginHandler());
         getApp().post("/user/set", new UserSetDataHandler());
@@ -163,16 +166,11 @@ public class HttpServer {
         getApp().post("/user/quick-login", new UserLoginHandler());
 
         getApp().post("/yostar/get-auth", new GetAuthHandler());
-        getApp().post("/yostar/send-code", new HttpJsonResponse("{\"Code\":200,\"Data\":{},\"Msg\":\"OK\"}")); // Dummy
-                                                                                                               // handler
+        getApp().post("/yostar/send-code", new HttpJsonResponse("{\"Code\":200,\"Data\":{},\"Msg\":\"OK\"}")); // Dummy handler
 
         // https://nova-static.stellasora.global/
         getApp().get("/meta/serverlist.html", new MetaServerlistHandler(this));
-        getApp().get("/meta/win.html", new MetaWinHandler(this));
-
-        getApp().post("/api/command", new RemoteHandler());
-
-
+        getApp().get("/meta/*.html", new MetaPatchListHandler(this));
     }
 
     private void addGameServerRoutes() {

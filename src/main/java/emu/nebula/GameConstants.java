@@ -6,8 +6,23 @@ import emu.nebula.game.inventory.ItemParam;
 import emu.nebula.util.WeightedList;
 
 public class GameConstants {
-    private static final int DATA_VERSION = 60;
-    private static final String VERSION = "1.2.0";
+    public static final String VERSION = "1.2.0";
+    public static int DATA_VERSION = 0;
+    
+    // Set data versions for each region
+    static {
+        RegionConfig.getRegion("global")
+            .setDataVersion(63);
+        
+        RegionConfig.getRegion("kr")
+            .setDataVersion(70);
+        
+        RegionConfig.getRegion("jp")
+            .setDataVersion(66);
+        
+        RegionConfig.getRegion("tw")
+            .setDataVersion(64);
+    }
     
     public static final ZoneId UTC_ZONE = ZoneId.of("UTC");
     
@@ -19,7 +34,7 @@ public class GameConstants {
     public static final int GEM_ITEM_ID = 2;
     public static final int PREM_GEM_ITEM_ID = 3;
     public static final int ENERGY_BUY_ITEM_ID = GEM_ITEM_ID;
-    public static final int STAR_TOWER_GOLD_ITEM_ID = 11;
+    public static final int STAR_TOWER_COIN_ITEM_ID = 11;
     public static final int EXP_ITEM_ID = 21;
     
     public static final int MAX_ENERGY = 240;
@@ -57,7 +72,14 @@ public class GameConstants {
     // Helper functions
     
     public static String getGameVersion() {
-        return VERSION + "." + getDataVersion() + " (" + Nebula.getConfig().getRegion().toUpperCase() + ")";
+        // Load data version
+        var region = RegionConfig.getRegion(Nebula.getConfig().getRegion());
+        
+        // Set data version from region
+        GameConstants.DATA_VERSION = region.getDataVersion();
+        
+        // Init game version string
+        return VERSION + "." + getDataVersion() + " (" + region.getName().toUpperCase() + ")";
     }
     
     public static int getDataVersion() {

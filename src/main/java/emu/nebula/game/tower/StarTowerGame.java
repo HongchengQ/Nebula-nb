@@ -2,18 +2,29 @@ package emu.nebula.game.tower;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import dev.morphia.annotations.Entity;
 
 import emu.nebula.GameConstants;
 import emu.nebula.data.GameData;
-import emu.nebula.data.resources.PotentialDef;
 import emu.nebula.data.resources.StarTowerDef;
 import emu.nebula.data.resources.StarTowerStageDef;
 import emu.nebula.game.formation.Formation;
 import emu.nebula.game.inventory.ItemParamMap;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
+import emu.nebula.game.tower.cases.StarTowerBaseCase;
+import emu.nebula.game.tower.cases.StarTowerDoorCase;
+import emu.nebula.game.tower.cases.StarTowerHawkerCase;
+import emu.nebula.game.tower.cases.StarTowerNpcRecoveryHPCase;
+import emu.nebula.game.tower.cases.StarTowerPotentialCase;
+import emu.nebula.game.tower.cases.StarTowerStrengthenMachineCase;
+import emu.nebula.game.tower.room.RoomType;
+import emu.nebula.game.tower.room.StarTowerBaseRoom;
+import emu.nebula.game.tower.room.StarTowerBattleRoom;
+import emu.nebula.game.tower.room.StarTowerEventRoom;
+import emu.nebula.game.tower.room.StarTowerHawkerRoom;
 import emu.nebula.proto.PublicStarTower.*;
 import emu.nebula.proto.StarTowerApply.StarTowerApplyReq;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractReq;
@@ -21,14 +32,11 @@ import emu.nebula.proto.StarTowerInteract.StarTowerInteractResp;
 import emu.nebula.util.Snowflake;
 import emu.nebula.util.Utils;
 
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
-
 import us.hebi.quickbuf.RepeatedMessage;
 
 @Getter
@@ -40,15 +48,13 @@ public class StarTowerGame {
     // Tower id
     private int id;
     
-    // Room
+    // Tower floor count
+    private int floorCount;
     private int stageNum;
     private int stageFloor;
-    private int floor;
-    private int mapId;
-    private int mapTableId;
-    private String mapParam;
-    private int paramId;
-    private int roomType;
+    
+    // Tower room
+    private StarTowerBaseRoom room;
     
     // Team
     private int formationId;
@@ -58,16 +64,12 @@ public class StarTowerGame {
     private int nextLevelExp;
     private int charHp;
     private int battleTime;
-    private int battleCount;
     private List<StarTowerChar> chars;
     private List<StarTowerDisc> discs;
     private IntList charIds;
     
-    // Case
-    private int lastCaseId = 0;
-    private List<StarTowerCase> cases;
-    private Int2IntMap cachedCases;
     private int pendingPotentialCases = 0;
+    private int pendingSubNotes = 0;
     
     // Bag
     private ItemParamMap items;
@@ -76,6 +78,9 @@ public class StarTowerGame {
     
     // Sub note skill drop list
     private IntList subNoteDropList;
+    
+    // Modifiers
+    private StarTowerModifiers modifiers;
     
     // Cached build
     private transient StarTowerBuild build;
@@ -91,38 +96,38 @@ public class StarTowerGame {
     }
     
     public StarTowerGame(StarTowerManager manager, StarTowerDef data, Formation formation, StarTowerApplyReq req) {
+        // Set manager and cache resource data
         this.manager = manager;
         this.data = data;
         
+        // Set tower id
         this.id = req.getId();
         
-        this.mapId = req.getMapId();
-        this.mapTableId = req.getMapTableId();
-        this.mapParam = req.getMapParam();
-        this.paramId = req.getParamId();
+        // Setup room
+        this.enterNextRoom();
+        this.getRoom().setMapInfo(req);
         
+        // Setup team
         this.formationId = req.getFormationId();
         this.buildId = Snowflake.newUid();
         this.teamLevel = 1;
         this.teamExp = 0;
         this.nextLevelExp = GameData.getStarTowerTeamExpDataTable().get(2).getNeedExp();
-        this.stageNum = 1;
-        this.stageFloor = 1;
-        this.floor = 1;
         this.charHp = -1;
         this.chars = new ArrayList<>();
         this.discs = new ArrayList<>();
         this.charIds = new IntArrayList();
-
-        this.cases = new ArrayList<>();
-        this.cachedCases = new Int2IntOpenHashMap();
         
         this.items = new ItemParamMap();
         this.res = new ItemParamMap();
         this.potentials = new ItemParamMap();
         this.newInfos = new ItemParamMap();
         
+        // Melody skill drop list
         this.subNoteDropList = new IntArrayList();
+        
+        // Init modifiers
+        this.modifiers = new StarTowerModifiers(this);
         
         // Init formation
         for (int i = 0; i < 3; i++) {
@@ -169,15 +174,11 @@ public class StarTowerGame {
             this.subNoteDropList.add(id);
         }
         
-        // Starting gold
-        int money = this.getStartingGold();
-        if (money > 0) {
-            this.getRes().add(GameConstants.STAR_TOWER_GOLD_ITEM_ID, money);
+        // Add starting coin directly
+        int coin = this.getModifiers().getStartingCoin();
+        if (coin > 0) {
+            this.getRes().add(GameConstants.STAR_TOWER_COIN_ITEM_ID, coin);
         }
-        
-        // Add cases
-        this.addCase(new StarTowerCase(CaseType.Battle));
-        this.addCase(new StarTowerCase(CaseType.SyncHP));
     }
     
     public Player getPlayer() {
@@ -192,18 +193,22 @@ public class StarTowerGame {
         return this.build;
     }
     
+    public int getDifficulty() {
+        return this.getData().getDifficulty();
+    }
+    
     public int getRandomCharId() {
         return Utils.randomElement(this.getCharIds());
     }
     
-    public StarTowerStageDef getStageData(int stage, int floor) {
-        var stageId = (this.getId() * 10000) + (stage * 100) + floor;
+    public StarTowerStageDef getStageData(int stageNum, int stageFloor) {
+        var stageId = (this.getId() * 10000) + (stageNum * 100) + stageFloor;
         return GameData.getStarTowerStageDataTable().get(stageId);
     }
     
     public StarTowerStageDef getNextStageData() {
-        int stage = this.stageNum;
-        int floor = this.stageFloor + 1;
+        int stage = this.getStageNum();
+        int floor = this.getStageFloor() + 1;
         
         if (floor >= this.getData().getMaxFloor(this.getStageNum())) {
             floor = 1;
@@ -213,18 +218,51 @@ public class StarTowerGame {
         return getStageData(stage, floor);
     }
     
-    public int getStartingGold() {
-        int gold = 0;
+    public boolean isOnFinalFloor() {
+        int nextFloor = this.getFloorCount() + 1;
+        return nextFloor > this.getData().getMaxFloors();
+    }
+    
+    @SneakyThrows
+    public void enterNextRoom() {
+        // Increment total floor count
+        this.floorCount++;
         
-        if (this.getManager().hasGrowthNode(10103)) {
-            gold += 50;
-        } if (this.getManager().hasGrowthNode(10403)) {
-            gold += 100;
-        } if (this.getManager().hasGrowthNode(10702)) {
-            gold += 200;
+        // Calculate stage num/floor
+        int nextStageFloor = this.stageFloor + 1;
+        
+        if (this.stageFloor >= this.getData().getMaxFloor(this.stageNum)) {
+            this.stageNum++;
+            this.stageFloor = 1;
+        } else {
+            this.stageFloor = nextStageFloor;
         }
         
-        return gold;
+        // Get stage data
+        var stage = this.getStageData(this.stageNum, this.stageFloor);
+        if (stage == null) {
+            throw new RuntimeException("No stage data for stage " + this.stageNum + "-" + this.stageFloor + " found");
+        }
+        
+        // Create room
+        int roomType = stage.getRoomType();
+        
+        if (roomType <= RoomType.FinalBossRoom.getValue()) {
+            this.room = new StarTowerBattleRoom(this, stage);
+        } else if (roomType == RoomType.EventRoom.getValue()) {
+            this.room = new StarTowerEventRoom(this, stage);
+        } else if (roomType == RoomType.ShopRoom.getValue()) {
+            this.room = new StarTowerHawkerRoom(this, stage);
+        } else {
+            this.room = new StarTowerBaseRoom(this, stage);
+        }
+        
+        // Create cases for the room
+        this.room.onEnter();
+    }
+    
+    public void addExp(int amount) {
+        this.teamExp += amount;
     }
 
     public int levelUp(int picks) {
@@ -261,50 +299,18 @@ public class StarTowerGame {
         return this.levelUp(potentialPicks);
     }
     
+    public void addBattleTime(int amount) {
+        this.battleTime += amount;
+    }
+    
     // Cases
     
-    public StarTowerCase getCase(CaseType type) {
-        // Check if we have any cached case for this case type
-        if (!this.getCachedCases().containsKey(type.getValue())) {
-            return null;
-        }
-        
-        // Get index of cached case
-        int index = this.getCachedCases().get(type.getValue());
-        
-        // Sanity check just in case
-        if (index < 0 || index >= this.getCases().size()) {
-            return null;
-        }
-        
-        return this.getCases().get(index);
+    public StarTowerBaseCase addCase(StarTowerBaseCase towerCase) {
+        return this.getRoom().addCase(towerCase);
     }
     
-    public void cacheCaseIndex(StarTowerCase towerCase) {
-        this.getCachedCases().put(towerCase.getType().getValue(), this.getCases().size() - 1);
-    }
-    
-    public StarTowerCase addCase(StarTowerCase towerCase) {
-        return this.addCase(null, towerCase);
-    }
-    
-    public StarTowerCase addCase(RepeatedMessage<StarTowerRoomCase> cases, StarTowerCase towerCase) {
-        // Add to cases list
-        this.getCases().add(towerCase);
-        
-        // Increment id
-        towerCase.setId(++this.lastCaseId);
-        
-        // Set proto
-        if (cases != null) {
-            cases.add(towerCase.toProto());
-        }
-        
-        // Cache case index
-        this.cacheCaseIndex(towerCase);
-        
-        // Complete
-        return towerCase;
+    public StarTowerBaseCase addCase(RepeatedMessage<StarTowerRoomCase> cases, StarTowerBaseCase towerCase) {
+        return this.getRoom().addCase(cases, towerCase);
     }
     
     // Items
@@ -313,10 +319,23 @@ public class StarTowerGame {
         return this.getItems().get(id);
     }
     
+    public int getResCount(int id) {
+        return this.getRes().get(id);
+    }
+    
+    public PlayerChangeInfo addItem(int id, int count) {
+        return this.addItem(id, count, null);
+    }
+    
     public PlayerChangeInfo addItem(int id, int count, PlayerChangeInfo change) {
         // Create changes if null
         if (change == null) {
             change = new PlayerChangeInfo();
+        }
+        
+        // Sanity check
+        if (count == 0) {
+            return change;
         }
         
         // Get item data
@@ -334,7 +353,7 @@ public class StarTowerGame {
                 
                 // Clamp level
                 int curLevel = getPotentials().get(id);
-                int nextLevel = Math.min(curLevel + count, potentialData.getMaxLevel());
+                int nextLevel = Math.min(curLevel + count, potentialData.getMaxLevel(this));
                 
                 // Sanity
                 count = nextLevel - curLevel;
@@ -388,26 +407,187 @@ public class StarTowerGame {
     
     // Potentials/Sub notes
     
-    private StarTowerCase createPotentialSelector(int charId) {
-        // Add potential selector
-        var potentialCase = new StarTowerCase(CaseType.SelectSpecialPotential);
-        potentialCase.setTeamLevel(this.getTeamLevel());
-        
-        // Get random potentials
-        List<PotentialDef> potentials = new ArrayList<>();
-        
-        for (var potentialData : GameData.getPotentialDataTable()) {
-            if (potentialData.getCharId() == charId) {
-                potentials.add(potentialData);
-            }
+    /**
+     * Adds random potential selector cases for the client
+     */
+    public void addPotentialSelectors(int amount) {
+        this.pendingPotentialCases += amount;
+    }
+    
+    /**
+     * Creates a potential selectors for the client if there are any potential selectors avaliable.
+     * If there are none, then create the door case so the player can exit
+     */
+    public List<StarTowerBaseCase> handlePendingPotentialSelectors() {
+        // Create potential selectors if any are avaliable
+        if (this.pendingPotentialCases > 0) {
+            this.pendingPotentialCases--;
+            
+            return List.of(this.createPotentialSelector());
         }
+        
+        // Return empty list if room already has an exit
+        if (this.getRoom().hasDoor()) {
+            return List.of();
+        }
+        
+        // Init List of next cases
+        List<StarTowerBaseCase> cases = new ArrayList<>();
+        
+        // Add door case here
+        cases.add(this.createExit());
+        
+        // Create shop npc if this is the last room
+        if (this.isOnFinalFloor()) {
+            // Create hawker case (shop)
+            cases.add(new StarTowerHawkerCase());
+            // Create strengthen machine
+            if (this.getModifiers().isEnableEndStrengthen()) {
+                cases.add(new StarTowerStrengthenMachineCase());
+            }
+        } else if (this.getRoom() instanceof StarTowerBattleRoom) {
+            // Create recovery npc
+            cases.add(new StarTowerNpcRecoveryHPCase());
+        }
+        
+        // Complete
+        return cases;
+    }
+    
+    /**
+     * Creates a potential selector for a random character
+     */
+    public StarTowerBaseCase createPotentialSelector() {
+        return this.createPotentialSelector(0);
+    }
+    
+    /**
+     * Creates a potential selector for the specified character
+     */
+    public StarTowerBaseCase createPotentialSelector(int charId) {
+        // Check character id
+        if (charId <= 0) {
+            charId = this.getRandomCharId();
+        }
+        
+        // Get character potentials
+        var data = GameData.getCharPotentialDataTable().get(charId);
+        if (data == null) {
+            return null;
+        }
+        
+        // Random potentials list
+        var list = new IntArrayList();
+        
+        // Add potentials based on character role
+        boolean isMainCharacter = this.getCharIds().getInt(0) == charId;
+        
+        if (isMainCharacter) {
+            list.addElements(0, data.getMasterSpecificPotentialIds());
+            list.addElements(0, data.getMasterNormalPotentialIds());
+        } else {
+            list.addElements(0, data.getAssistSpecificPotentialIds());
+            list.addElements(0, data.getAssistNormalPotentialIds());
+        }
+        
+        list.addElements(0, data.getCommonPotentialIds());
+        
+        // Remove potentials we already have maxed out
+        var potentials = new IntArrayList();
+        
+        for (int id : list) {
+            // Get potential data
+            var potential = GameData.getPotentialDataTable().get(id);
+            if (potential == null) continue;
+            
+            // Filter out max level ones
+            int curLevel = this.getPotentials().get(id);
+            int maxLevel = potential.getMaxLevel(this);
+            
+            if (curLevel >= maxLevel) {
+                continue;
+            }
+            
+            // Add
+            potentials.add(id);
+        }
+        
+        // Get up to 3 random potentials
+        IntList selector = new IntArrayList();
         
         for (int i = 0; i < 3; i++) {
-            var potentialData = Utils.randomElement(potentials);
-            potentialCase.addId(potentialData.getId());
+            // Sanity check
+            if (potentials.isEmpty()) {
+                break;
+            }
+            
+            // Get random potential id
+            int potentialId = Utils.randomElement(potentials, true);
+            
+            // Add to selector
+            selector.add(potentialId);
         }
         
-        return potentialCase;
+        // Sanity check
+        if (selector.isEmpty()) {
+            return null;
+        }
+        
+        // Creator potential selector case
+        return new StarTowerPotentialCase(this.getTeamLevel(), selector);
+    }
+    
+    public StarTowerBaseCase createStrengthenSelector() {
+        // Random potentials list
+        var potentials = new IntArrayList();
+        
+        // Get upgradable potentials
+        for (var item : this.getPotentials()) {
+            // Get potential data
+            var potential = GameData.getPotentialDataTable().get(item.getIntKey());
+            if (potential == null) continue;
+            
+            // Check max level
+            int level = item.getIntValue();
+            if (level >= potential.getMaxLevel(this)) {
+                continue;
+            }
+            
+            // Add
+            potentials.add(potential.getId());
+        }
+        
+        // Get up to 3 random potentials
+        IntList selector = new IntArrayList();
+        
+        for (int i = 0; i < 3; i++) {
+            // Sanity check
+            if (potentials.isEmpty()) {
+                break;
+            }
+            
+            // Get random potential id
+            int index = ThreadLocalRandom.current().nextInt(0, potentials.size());
+            int potentialId = potentials.getInt(index);
+            
+            // Add to selector
+            selector.add(potentialId);
+            
+            // Remove potential id from the selector
+            potentials.removeInt(index);
+        }
+        
+        // Sanity check
+        if (selector.isEmpty()) {
+            return null;
+        }
+        
+        // Creator potential selector case
+        return new StarTowerPotentialCase(this.getTeamLevel(), selector);
+    }
+    
+    public void setPendingSubNotes(int amount) {
+        this.pendingSubNotes = amount;
     }
     
     private PlayerChangeInfo addRandomSubNoteSkills(PlayerChangeInfo change) {
@@ -419,7 +599,7 @@ public class StarTowerGame {
         return change;
     }
     
-    private PlayerChangeInfo addRandomSubNoteSkills(int count, PlayerChangeInfo change) {
+    public PlayerChangeInfo addRandomSubNoteSkills(int count, PlayerChangeInfo change) {
         for (int i = 0; i < count; i++) {
             this.addRandomSubNoteSkills(change);
         }
@@ -427,22 +607,34 @@ public class StarTowerGame {
         return change;
     }
     
+    // Door case
+    
+    public StarTowerBaseCase createExit() {
+        return this.createExit(null);
+    }
+    
+    public StarTowerBaseCase createExit(RepeatedMessage<StarTowerRoomCase> cases) {
+        return this.getRoom().addCase(
+            cases,
+            new StarTowerDoorCase(this.getFloorCount() + 1, this.getNextStageData())
+        );
+    }
+    
     // Handlers
     
     public StarTowerInteractResp handleInteract(StarTowerInteractReq req) {
+        // Build response proto
         var rsp = StarTowerInteractResp.newInstance()
                 .setId(req.getId());
-                
-        if (req.hasBattleEndReq()) {
-            rsp = this.onBattleEnd(req, rsp);
-        } else if (req.hasRecoveryHPReq()) {
-            rsp = this.onRecoveryHP(req, rsp);
-        } else if (req.hasSelectReq()) {
-            rsp = this.onSelect(req, rsp);
-        } else if (req.hasEnterReq()) {
-            rsp = this.onEnterReq(req, rsp);
-        } else if (req.hasHawkerReq()) {
-            rsp = this.onHawkerReq(req, rsp);
+        
+        // Get tower case
+        var towerCase = this.getRoom().getCase(req.getId());
+        
+        // Handle interaction with tower case
+        if (towerCase != null) {
+            rsp = towerCase.interact(req, rsp);
+        } else {
+            rsp.getMutableNilResp();
         }
         
         // Add any items
@@ -465,291 +657,13 @@ public class StarTowerGame {
         // Set these protos
         rsp.getMutableChange();
         
+        // Return response proto
         return rsp;
     }
     
-    // Interact events
-
-    @SneakyThrows
-    public StarTowerInteractResp onBattleEnd(StarTowerInteractReq req, StarTowerInteractResp rsp) {
-        // Parse battle end
-        var proto = req.getBattleEndReq();
-        
-        // Init change
-        var change = new PlayerChangeInfo();
-        
-        // Handle victory/defeat
-        if (proto.hasVictory()) {
-            // Handle leveling up
-
-            // Get relevant floor exp data
-            // fishiatee: THERE'S NO LINQ IN JAVAAAAAAAAAAAAA
-            var floorExpData = GameData.getStarTowerFloorExpDataTable().stream()
-                                .filter(f -> f.getStarTowerId() == this.getId())
-                                .findFirst()
-                                .orElseThrow();
-            int expReward = 0;
-
-            // Determine appropriate exp reward
-            switch (this.getRoomType()) {
-                // Regular battle room
-                case 0:
-                    expReward = floorExpData.getNormalExp();
-                    break;
-                // Elite battle room
-                case 1:
-                    expReward = floorExpData.getEliteExp();
-                    break;
-                // Non-final boss room
-                case 2:
-                    expReward = floorExpData.getBossExp();
-                    break;
-                // Final room
-                case 3:
-                    expReward = floorExpData.getFinalBossExp();
-                    break;
-            }
-
-            // Level up
-            this.teamExp += expReward;
-            this.pendingPotentialCases += this.levelUp();
-            
-            // Add clear time
-            this.battleTime += proto.getVictory().getTime();
-            
-            // Handle victory
-            rsp.getMutableBattleEndResp()
-                .getMutableVictory()
-                .setLv(this.getTeamLevel())
-                .setBattleTime(this.getBattleTime());
-            
-            // Add money
-            int money = this.getStageData(this.getStageNum(), this.getStageFloor()).getInteriorCurrencyQuantity();
-            
-            this.addItem(GameConstants.STAR_TOWER_GOLD_ITEM_ID, money, change);
-            
-            // Handle pending potential selectors
-            if (this.pendingPotentialCases > 0) {
-                // Create potential selector
-                var potentialCase = this.createPotentialSelector(this.getRandomCharId());
-                this.addCase(rsp.getMutableCases(), potentialCase);
-                
-                this.pendingPotentialCases--;
-            }
-            else {
-                // Add door case here
-                var doorCase = this.addCase(new StarTowerCase(CaseType.OpenDoor));
-                doorCase.setFloorId(this.getStageFloor() + 1);
-        
-                var nextStage = this.getNextStageData();
-                if (nextStage != null) {
-                    doorCase.setRoomType(nextStage.getRoomType());
-                }
-
-                this.addCase(rsp.getMutableCases(), doorCase);
-            }
-            
-            // Add sub note skills
-            var battleCase = this.getCase(CaseType.Battle);
-            if (battleCase != null) {
-                int subNoteSkills = battleCase.getSubNoteSkillNum();
-                this.addRandomSubNoteSkills(subNoteSkills, change);
-            }
-
-            // Handle client events for achievements
-            getPlayer().getAchievementManager().handleClientEvents(proto.getVictory().getEvents());
-        } else {
-            // Handle defeat
-            // TODO
-        }
-        
-        // Increment battle count
-        this.battleCount++;
-        
-        // Set change
-        rsp.setChange(change.toProto());
-        
-        // Return response for the player
-        return rsp;
-    }
-
-    public StarTowerInteractResp onSelect(StarTowerInteractReq req, StarTowerInteractResp rsp) {
-        var index = req.getMutableSelectReq().getIndex();
-        
-        var selectorCase = this.getCase(CaseType.SelectSpecialPotential);
-        if (selectorCase == null) {
-            return rsp;
-        }
-        
-        int id = selectorCase.selectId(index);
-        if (id <= 0) {
-            return rsp;
-        }
-        
-        // Add item
-        var change = this.addItem(id, 1, null);
-        
-        // Set change
-        rsp.setChange(change.toProto());
-        
-        // Handle pending potential selectors
-        if (this.pendingPotentialCases > 0) {
-            // Create potential selector
-            var potentialCase = this.createPotentialSelector(this.getRandomCharId());
-            this.addCase(rsp.getMutableCases(), potentialCase);
-
-            this.pendingPotentialCases--;
-        }
-        else {
-            // Add door case
-            var doorCase = this.addCase(new StarTowerCase(CaseType.OpenDoor));
-            doorCase.setFloorId(this.getStageFloor() + 1);
-        
-            var nextStage = this.getNextStageData();
-            if (nextStage != null) {
-                doorCase.setRoomType(nextStage.getRoomType());
-            }
-
-            this.addCase(rsp.getMutableCases(), doorCase);
-        }
-        
-        return rsp;
-    }
-    
-    public StarTowerInteractResp onEnterReq(StarTowerInteractReq req, StarTowerInteractResp rsp) {
-        // Get proto
-        var proto = req.getEnterReq();
-        
-        // Set
-        this.mapId = proto.getMapId();
-        this.mapTableId = proto.getMapTableId();
-        this.mapParam = proto.getMapParam();
-        this.paramId = proto.getParamId();
-        this.floor++;
-        
-        // Check if we need to settle
-        if (this.floor > this.getData().getMaxFloors()) {
-            return this.settle(rsp);
-        }
-        
-        // Next floor
-        int nextFloor = this.stageFloor + 1;
-        
-        if (this.stageFloor >= this.getData().getMaxFloor(this.getStageNum())) {
-            this.stageFloor = 1;
-            this.stageNum++;
-        } else {
-            this.stageFloor = nextFloor;
-        }
-        
-        // Calculate stage
-        var stageData = this.getStageData(this.getStageNum(), this.getStageFloor());
-        
-        if (stageData != null) {
-            this.roomType = stageData.getRoomType();
-        } else {
-            this.roomType = 0;
-        }
-        
-        // Clear cases
-        this.lastCaseId = 0;
-        this.cases.clear();
-        this.cachedCases.clear();
-        
-        // Add cases
-        var syncHpCase = new StarTowerCase(CaseType.SyncHP);
-        
-        // Room proto
-        var room = rsp.getMutableEnterResp().getMutableRoom();
-        room.setData(this.toRoomDataProto());
-        
-        // Handle room type TODO
-        if (this.roomType <= StarTowerRoomType.FinalBossRoom.getValue()) {
-            var battleCase = new StarTowerCase(CaseType.Battle);
-            battleCase.setSubNoteSkillNum(Utils.randomRange(1, 3));
-
-            this.addCase(room.getMutableCases(), battleCase);
-        } else if (this.roomType == StarTowerRoomType.EventRoom.getValue()) {
-            
-        } else if (this.roomType == StarTowerRoomType.ShopRoom.getValue()) {
-            var hawkerCase = new StarTowerCase(CaseType.Hawker);
-            
-            // TODO
-            for (int i = 0; i < 8; i++) {
-                hawkerCase.addGoods(new StarTowerShopGoods(1, 1, 200));
-            }
-            
-            this.addCase(room.getMutableCases(), hawkerCase);
-        }
-        
-        // Add cases
-        this.addCase(room.getMutableCases(), syncHpCase);
-
-        // Add door to next floor if current floor is choice/shop domains
-        if (this.roomType == 6 | this.roomType == 7) {
-            var doorCase = new StarTowerCase(CaseType.OpenDoor);
-            doorCase.setFloorId(this.getFloor() + 1);
-
-            // Set room type of next room
-            var nextStage = this.getNextStageData();
-            if (nextStage != null) {
-                doorCase.setRoomType(nextStage.getRoomType());
-            }
-
-            // Add case
-            this.addCase(room.getMutableCases(), doorCase);
-        }
-        
-        // Done
-        return rsp;
-    }
-
-    public StarTowerInteractResp onRecoveryHP(StarTowerInteractReq req, StarTowerInteractResp rsp) {
-        // Add case
-        this.addCase(rsp.getMutableCases(), new StarTowerCase(CaseType.RecoveryHP));
-        
-        return rsp;
-    }
-    
-    private StarTowerInteractResp onHawkerReq(StarTowerInteractReq req, StarTowerInteractResp rsp) {
-        // Set this proto
-        rsp.getMutableNilResp();
-        
-        // Get hawker case
-        var shop = this.getCase(CaseType.Hawker);
-        if (shop == null || shop.getGoodsList() == null) {
-            return rsp;
-        }
-        
-        // Get goods
-        var goods = shop.getGoodsList().get(req.getHawkerReq().getSid());
-        
-        // Make sure we have enough currency
-        if (this.getRes().get(GameConstants.STAR_TOWER_GOLD_ITEM_ID) < goods.getPrice() || goods.isSold()) {
-            return rsp;
-        }
-        
-        // Mark goods as sold
-        goods.markAsSold();
-        
-        // Add case
-        int charId = this.getRandomCharId();
-        var potentialCase = this.createPotentialSelector(charId);
-        this.addCase(rsp.getMutableCases(), potentialCase);
-        
-        // Remove items
-        var change = this.addItem(GameConstants.STAR_TOWER_GOLD_ITEM_ID, -goods.getPrice(), null);
-        
-        // Set change info
-        rsp.setChange(change.toProto());
-        
-        // Success
-        return rsp;
-    }
-    
-    public StarTowerInteractResp settle(StarTowerInteractResp rsp) {
+    public StarTowerInteractResp settle(StarTowerInteractResp rsp, boolean isWin) {
         // End game
-        this.getManager().endGame(true);
+        this.getManager().endGame(isWin);
         
         // Settle info
         var settle = rsp.getMutableSettle()
@@ -760,7 +674,9 @@ public class StarTowerGame {
         settle.getMutableChange();
         
         // Log victory
-        this.getManager().getPlayer().getProgress().addStarTowerLog(this.getId());
+        if (isWin) {
+            this.getManager().getPlayer().getProgress().addStarTowerLog(this.getId());
+        }
         
         // Complete
         return rsp;
@@ -781,12 +697,8 @@ public class StarTowerGame {
         this.getChars().forEach(proto.getMutableMeta()::addChars);
         this.getDiscs().forEach(proto.getMutableMeta()::addDiscs);
         
-        proto.getMutableRoom().setData(this.toRoomDataProto());
-        
-        // Cases
-        for (var starTowerCase : this.getCases()) {
-            proto.getMutableRoom().addCases(starTowerCase.toProto());
-        }
+        // Set room data
+        proto.setRoom(this.getRoom().toProto());
         
         // Set up bag
         var bag = proto.getMutableBag();
@@ -813,24 +725,6 @@ public class StarTowerGame {
                     .setQty(entry.getIntValue());
             
             bag.addRes(res);
-        }
-        
-        return proto;
-    }
-    
-    public StarTowerRoomData toRoomDataProto() {
-        var proto = StarTowerRoomData.newInstance()
-                .setFloor(this.getStageFloor())
-                .setMapId(this.getMapId())
-                .setRoomType(this.getRoomType())
-                .setMapTableId(this.getMapTableId());
-        
-        if (this.getMapParam() != null && !this.getMapParam().isEmpty()) {
-            proto.setMapParam(this.getMapParam());
-        }
-        
-        if (this.getParamId() != 0) {
-            proto.setParamId(this.getParamId());
         }
         
         return proto;

@@ -205,7 +205,12 @@ public class StarTowerManager extends PlayerManager {
         }
         
         // Create game
-        this.game = new StarTowerGame(this, data, formation, req);
+        try {
+            this.game = new StarTowerGame(this, data, formation, req);
+        } catch (Exception e) {
+            Nebula.getLogger().error("Could not create star tower game", e);
+            return null;
+        }
         
         // Trigger quest
         this.getPlayer().trigger(QuestCondition.TowerEnterFloor, 1);

@@ -179,11 +179,33 @@ public class Utils {
     }
 
     public static <T> T randomElement(List<T> list) {
-        return list.get(ThreadLocalRandom.current().nextInt(0, list.size()));
+        return randomElement(list, false);
+    }
+    
+    public static <T> T randomElement(List<T> list, boolean remove) {
+        int index = ThreadLocalRandom.current().nextInt(0, list.size());
+        var object = list.get(index);
+        
+        if (remove) {
+            list.remove(index);
+        }
+        
+        return object;
     }
     
     public static int randomElement(IntList list) {
         return list.getInt(ThreadLocalRandom.current().nextInt(0, list.size()));
+    }
+    
+    public static int randomElement(IntList list, boolean remove) {
+        int index = ThreadLocalRandom.current().nextInt(0, list.size());
+        int object = list.getInt(index);
+        
+        if (remove) {
+            list.removeInt(index);
+        }
+        
+        return object;
     }
 
     /**

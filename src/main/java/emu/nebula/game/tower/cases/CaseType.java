@@ -1,4 +1,4 @@
-package emu.nebula.game.tower;
+package emu.nebula.game.tower.cases;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;

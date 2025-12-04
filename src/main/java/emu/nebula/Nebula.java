@@ -43,9 +43,8 @@ public class Nebula {
     @Getter private static PluginManager pluginManager;
     
     public static void main(String[] args) {
-        // Load config + keys first
+        // Load config first
         Nebula.loadConfig();
-        AeadHelper.loadKeys();
         
         // Start Server
         Nebula.getLogger().info("Starting Nebula " + getJarVersion());
@@ -53,6 +52,9 @@ public class Nebula {
         Nebula.getLogger().info("Game version: " + GameConstants.getGameVersion());
         
         boolean generateHandbook = true;
+        
+        // Load keys
+        AeadHelper.loadKeys();
         
         // Load plugin manager
         Nebula.pluginManager = new PluginManager();

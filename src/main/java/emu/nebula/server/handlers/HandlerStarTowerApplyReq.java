@@ -5,6 +5,7 @@ import emu.nebula.net.NetMsgId;
 import emu.nebula.proto.StarTowerApply.StarTowerApplyReq;
 import emu.nebula.proto.StarTowerApply.StarTowerApplyResp;
 import emu.nebula.net.HandlerId;
+import emu.nebula.GameConstants;
 import emu.nebula.game.tower.StarTowerGame;
 import emu.nebula.net.GameSession;
 
@@ -29,6 +30,7 @@ public class HandlerStarTowerApplyReq extends NetHandler {
         // Create response
         var rsp = StarTowerApplyResp.newInstance()
                 .setLastId(req.getId())
+                .setCoinQty(game.getResCount(GameConstants.STAR_TOWER_COIN_ITEM_ID))
                 .setInfo(game.toProto())
                 .setChange(change.toProto());
         
