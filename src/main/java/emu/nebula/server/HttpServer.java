@@ -170,7 +170,7 @@ public class HttpServer {
 
         // https://nova-static.stellasora.global/
         getApp().get("/meta/serverlist.html", new MetaServerlistHandler(this));
-        getApp().get("/meta/win.html", new MetaWinHandler(this));
+        getApp().get("/meta/*.html", new MetaPatchListHandler(this));
     }
 
     private void addGameServerRoutes() {

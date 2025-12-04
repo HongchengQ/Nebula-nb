@@ -12,10 +12,10 @@ import lombok.AccessLevel;
 import lombok.Getter;
 
 @Getter(AccessLevel.PRIVATE)
-public class MetaWinHandler implements Handler {
+public class MetaPatchListHandler implements Handler {
     private HttpServer server;
     
-    public MetaWinHandler(HttpServer server) {
+    public MetaPatchListHandler(HttpServer server) {
         this.server = server;
     }
 
