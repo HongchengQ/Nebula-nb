@@ -12,16 +12,16 @@ public class GameConstants {
     // Set data versions for each region
     static {
         RegionConfig.getRegion("global")
-            .setDataVersion(60);
-        
-        RegionConfig.getRegion("kr")
-            .setDataVersion(67);
-        
-        RegionConfig.getRegion("jp")
             .setDataVersion(63);
         
+        RegionConfig.getRegion("kr")
+            .setDataVersion(70);
+        
+        RegionConfig.getRegion("jp")
+            .setDataVersion(66);
+        
         RegionConfig.getRegion("tw")
-            .setDataVersion(61);
+            .setDataVersion(64);
     }
     
     public static final ZoneId UTC_ZONE = ZoneId.of("UTC");
