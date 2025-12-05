@@ -173,6 +173,14 @@ public class Utils {
     public static int randomRange(int min, int max) {
         return ThreadLocalRandom.current().nextInt(min, max + 1);
     }
+    
+    public static boolean randomChance(double chance) {
+        if (chance <= 0) {
+            return false;
+        }
+        
+        return ThreadLocalRandom.current().nextDouble() < chance;
+    }
 
     public static int randomElement(int[] array) {
         return array[ThreadLocalRandom.current().nextInt(0, array.length)];

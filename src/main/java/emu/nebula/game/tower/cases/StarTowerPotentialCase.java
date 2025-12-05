@@ -1,20 +1,22 @@
 package emu.nebula.game.tower.cases;
 
-import emu.nebula.proto.PublicStarTower.PotentialInfo;
+import java.util.List;
+
+import emu.nebula.game.tower.StarTowerPotentialInfo;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractReq;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractResp;
-import it.unimi.dsi.fastutil.ints.IntList;
+
 import lombok.Getter;
 
 @Getter
 public class StarTowerPotentialCase extends StarTowerBaseCase {
     private int teamLevel;
-    private IntList potentialIds;
+    private List<StarTowerPotentialInfo> potentials;
     
-    public StarTowerPotentialCase(int teamLevel, IntList potentialIds) {
+    public StarTowerPotentialCase(int teamLevel, List<StarTowerPotentialInfo> potentials) {
         this.teamLevel = teamLevel;
-        this.potentialIds = potentialIds;
+        this.potentials = potentials;
     }
 
     @Override
@@ -22,29 +24,26 @@ public class StarTowerPotentialCase extends StarTowerBaseCase {
         return CaseType.PotentialSelect;
     }
     
-    public int selectId(int index) {
-        if (this.getPotentialIds() == null) {
-            return 0;
+    public StarTowerPotentialInfo selectId(int index) {
+        if (index < 0 || index >= this.getPotentials().size()) {
+            return null;
         }
         
-        if (index < 0 || index >= this.getPotentialIds().size()) {
-            return 0;
-        }
-        
-        return this.getPotentialIds().getInt(index);
+        return this.getPotentials().get(index);
     }
     
     @Override
     public StarTowerInteractResp interact(StarTowerInteractReq req, StarTowerInteractResp rsp) {
+        // Get selected potential
         var index = req.getMutableSelectReq().getIndex();
         
-        int id = this.selectId(index);
-        if (id <= 0) {
+        var potential = this.selectId(index);
+        if (potential == null) {
             return rsp;
         }
         
-        // Add item
-        var change = this.getGame().addItem(id, 1);
+        // Add potential
+        var change = this.getGame().addItem(potential.getId(), potential.getLevel());
         
         // Set change
         rsp.setChange(change.toProto());
@@ -56,6 +55,7 @@ public class StarTowerPotentialCase extends StarTowerBaseCase {
             this.getGame().addCase(rsp.getMutableCases(), towerCase);
         }
         
+        // Complete
         return rsp;
     }
     
@@ -66,12 +66,8 @@ public class StarTowerPotentialCase extends StarTowerBaseCase {
         var select = proto.getMutableSelectPotentialCase()
             .setTeamLevel(this.getTeamLevel());
         
-        for (int id : this.getPotentialIds()) {
-            var info = PotentialInfo.newInstance()
-                    .setTid(id)
-                    .setLevel(1);
-            
-            select.addInfos(info);
+        for (var potential : this.getPotentials()) {
+            select.addInfos(potential.toProto());
         }
     }
 }

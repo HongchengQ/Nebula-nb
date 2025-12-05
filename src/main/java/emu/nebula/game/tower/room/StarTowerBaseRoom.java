@@ -90,6 +90,11 @@ public class StarTowerBaseRoom {
     }
     
     public StarTowerBaseCase addCase(RepeatedMessage<StarTowerRoomCase> cases, StarTowerBaseCase towerCase) {
+        // Sanity check
+        if (towerCase == null) {
+            return null;
+        }
+        
         // Set game for tower case
         towerCase.register(this);
         

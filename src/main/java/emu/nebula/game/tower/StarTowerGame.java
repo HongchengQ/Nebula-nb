@@ -2,14 +2,16 @@ package emu.nebula.game.tower;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import dev.morphia.annotations.Entity;
 
 import emu.nebula.GameConstants;
 import emu.nebula.data.GameData;
+import emu.nebula.data.resources.SecondarySkillDef;
 import emu.nebula.data.resources.StarTowerDef;
 import emu.nebula.data.resources.StarTowerStageDef;
+import emu.nebula.game.character.GameCharacter;
+import emu.nebula.game.character.GameDisc;
 import emu.nebula.game.formation.Formation;
 import emu.nebula.game.inventory.ItemParamMap;
 import emu.nebula.game.player.Player;
@@ -34,7 +36,8 @@ import emu.nebula.util.Utils;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import us.hebi.quickbuf.RepeatedMessage;
@@ -64,9 +67,8 @@ public class StarTowerGame {
     private int nextLevelExp;
     private int charHp;
     private int battleTime;
-    private List<StarTowerChar> chars;
-    private List<StarTowerDisc> discs;
-    private IntList charIds;
+    private int[] charIds;
+    private int[] discIds;
     
     private int pendingPotentialCases = 0;
     private int pendingSubNotes = 0;
@@ -75,6 +77,7 @@ public class StarTowerGame {
     private ItemParamMap items;
     private ItemParamMap res;
     private ItemParamMap potentials;
+    private IntSet secondarySkills;
     
     // Sub note skill drop list
     private IntList subNoteDropList;
@@ -85,10 +88,6 @@ public class StarTowerGame {
     // Cached build
     private transient StarTowerBuild build;
     private transient ItemParamMap newInfos;
-    
-    private static final int[] COMMON_SUB_NOTE_SKILLS = new int[] {
-        90011, 90012, 90013, 90014, 90015, 90016, 90017
-    };
     
     @Deprecated // Morphia only
     public StarTowerGame() {
@@ -114,70 +113,75 @@ public class StarTowerGame {
         this.teamExp = 0;
         this.nextLevelExp = GameData.getStarTowerTeamExpDataTable().get(2).getNeedExp();
         this.charHp = -1;
-        this.chars = new ArrayList<>();
-        this.discs = new ArrayList<>();
-        this.charIds = new IntArrayList();
         
         this.items = new ItemParamMap();
         this.res = new ItemParamMap();
         this.potentials = new ItemParamMap();
+        this.secondarySkills = new IntOpenHashSet();
+        
         this.newInfos = new ItemParamMap();
         
-        // Melody skill drop list
+        // Init melody drop list
         this.subNoteDropList = new IntArrayList();
         
         // Init modifiers
         this.modifiers = new StarTowerModifiers(this);
         
         // Init formation
+        IntList charList = new IntArrayList();
+        IntList discList = new IntArrayList();
+        
         for (int i = 0; i < 3; i++) {
             int id = formation.getCharIdAt(i);
             var character = getPlayer().getCharacters().getCharacterById(id);
             
-            if (character != null) {
-                // Add to character id list
-                this.charIds.add(id);
-                
-                // Add sub note skill id to drop list
-                int subNoteSkill = character.getData().getElementType().getSubNoteSkillItemId();
-                if (subNoteSkill > 0 && !this.subNoteDropList.contains(subNoteSkill)) {
-                    this.subNoteDropList.add(subNoteSkill);
-                }
-
-                this.chars.add(character.toStarTowerProto());
-            } else {
-                this.chars.add(StarTowerChar.newInstance());
+            if (character == null) {
+                continue;
             }
+            
+            // Add sub note skill id to drop list
+            int subNoteSkill = character.getData().getElementType().getSubNoteSkillItemId();
+            if (subNoteSkill > 0 && !this.subNoteDropList.contains(subNoteSkill)) {
+                this.subNoteDropList.add(subNoteSkill);
+            }
+            
+            // Add to character list
+            charList.add(id);
         }
-        
+
         for (int i = 0; i < 6; i++) {
             int id = formation.getDiscIdAt(i);
             var disc = getPlayer().getCharacters().getDiscById(id);
             
-            if (disc != null) {
-                this.discs.add(disc.toStarTowerProto());
-                
-                // Add star tower sub note skills
-                if (i >= 3) {
-                    var subNoteData = disc.getSubNoteSkillDef();
-                    if (subNoteData != null) {
-                        this.getItems().add(subNoteData.getItems());
-                    }
-                }
-            } else {
-                this.discs.add(StarTowerDisc.newInstance());
+            if (disc == null) {
+                continue;
             }
+            
+            // Add star tower sub note skills from disc
+            if (i >= 3) {
+                var subNoteData = disc.getSubNoteSkillDef();
+                if (subNoteData != null) {
+                    this.getItems().add(subNoteData.getItems());
+                }
+            }
+            
+            // Add to disc list
+            discList.add(id);
         }
         
+        // Merge char/disc ids into an array for optimization
+        this.charIds = charList.toIntArray();
+        this.discIds = discList.toIntArray();
+        
         // Finish setting up droppable sub note skills
-        for (int id : COMMON_SUB_NOTE_SKILLS) {
+        for (int id : GameConstants.TOWER_COMMON_SUB_NOTE_SKILLS) {
             this.subNoteDropList.add(id);
         }
         
         // Add starting coin directly
         int coin = this.getModifiers().getStartingCoin();
         if (coin > 0) {
-            this.getRes().add(GameConstants.STAR_TOWER_COIN_ITEM_ID, coin);
+            this.getRes().add(GameConstants.TOWER_COIN_ITEM_ID, coin);
         }
     }
     
@@ -195,6 +199,24 @@ public class StarTowerGame {
     
     public int getDifficulty() {
         return this.getData().getDifficulty();
+    }
+    
+    public GameCharacter getCharByIndex(int index) {
+        if (index < 0 || index >= this.getCharIds().length) {
+            return null;
+        }
+        
+        int id = this.getCharIds()[index];
+        return this.getPlayer().getCharacters().getCharacterById(id);
+    }
+    
+    public GameDisc getDiscByIndex(int index) {
+        if (index < 0 || index >= this.getDiscIds().length) {
+            return null;
+        }
+        
+        int id = this.getDiscIds()[index];
+        return this.getPlayer().getCharacters().getDiscById(id);
     }
     
     public int getRandomCharId() {
@@ -372,6 +394,11 @@ public class StarTowerGame {
                 change.add(info);
             }
             case SubNoteSkill -> {
+                // Sanity check to make sure we dont remove more than what we have
+                if (count < 0) {
+                    count = Math.max(count, -this.getItems().get(id));
+                }
+                
                 // Add to items
                 this.getItems().add(id, count);
                 
@@ -386,6 +413,11 @@ public class StarTowerGame {
                 this.getNewInfos().add(id, count);
             }
             case Res -> {
+                // Sanity check to make sure we dont remove more than what we have
+                if (count < 0) {
+                    count = Math.max(count, -this.getRes().get(id));
+                }
+                
                 // Add to res
                 this.getRes().add(id, count);
                 
@@ -461,10 +493,14 @@ public class StarTowerGame {
         return this.createPotentialSelector(0);
     }
     
+    public StarTowerBaseCase createPotentialSelector(int charId) {
+        return this.createPotentialSelector(charId, false);
+    }
+    
     /**
      * Creates a potential selector for the specified character
      */
-    public StarTowerBaseCase createPotentialSelector(int charId) {
+    public StarTowerBaseCase createPotentialSelector(int charId, boolean rareOnly) {
         // Check character id
         if (charId <= 0) {
             charId = this.getRandomCharId();
@@ -480,17 +516,25 @@ public class StarTowerGame {
         var list = new IntArrayList();
         
         // Add potentials based on character role
-        boolean isMainCharacter = this.getCharIds().getInt(0) == charId;
+        boolean isMainCharacter = this.getCharIds()[0] == charId;
         
         if (isMainCharacter) {
             list.addElements(0, data.getMasterSpecificPotentialIds());
-            list.addElements(0, data.getMasterNormalPotentialIds());
+            
+            if (!rareOnly) {
+                list.addElements(0, data.getMasterNormalPotentialIds());
+            }
         } else {
             list.addElements(0, data.getAssistSpecificPotentialIds());
-            list.addElements(0, data.getAssistNormalPotentialIds());
+            
+            if (!rareOnly) {
+                list.addElements(0, data.getAssistNormalPotentialIds());
+            }
         }
         
-        list.addElements(0, data.getCommonPotentialIds());
+        if (!rareOnly) {
+            list.addElements(0, data.getCommonPotentialIds()); 
+        }
         
         // Remove potentials we already have maxed out
         var potentials = new IntArrayList();
@@ -513,7 +557,7 @@ public class StarTowerGame {
         }
         
         // Get up to 3 random potentials
-        IntList selector = new IntArrayList();
+        List<StarTowerPotentialInfo> selector = new ArrayList<>();
         
         for (int i = 0; i < 3; i++) {
             // Sanity check
@@ -522,10 +566,27 @@ public class StarTowerGame {
             }
             
             // Get random potential id
-            int potentialId = Utils.randomElement(potentials, true);
+            int id = Utils.randomElement(potentials, true);
+            int level = 1;
+            
+            // Check for bonuses
+            if (this.getItemCount(id) > 0) {
+                // New potential
+                if (Utils.randomChance(this.getModifiers().getBonusPotentialChance())) {
+                    level += this.getModifiers().getBonusPotentialLevel();
+                }
+            } else {
+                // Existing potential
+                if (Utils.randomChance(this.getModifiers().getBonusStrengthenChance())) {
+                    level += 1;
+                }
+            }
+            
+            // Create potential
+            var potential = new StarTowerPotentialInfo(id, level);
             
             // Add to selector
-            selector.add(potentialId);
+            selector.add(potential);
         }
         
         // Sanity check
@@ -558,7 +619,7 @@ public class StarTowerGame {
         }
         
         // Get up to 3 random potentials
-        IntList selector = new IntArrayList();
+        List<StarTowerPotentialInfo> selector = new ArrayList<>();
         
         for (int i = 0; i < 3; i++) {
             // Sanity check
@@ -567,14 +628,19 @@ public class StarTowerGame {
             }
             
             // Get random potential id
-            int index = ThreadLocalRandom.current().nextInt(0, potentials.size());
-            int potentialId = potentials.getInt(index);
+            int id = Utils.randomElement(potentials, true);
+            int level = 1;
+            
+            // Check bonus potential chance
+            if (Utils.randomChance(this.getModifiers().getBonusStrengthenChance())) {
+                level += 1;
+            }
+            
+            // Create potential
+            var potential = new StarTowerPotentialInfo(id, level);
             
             // Add to selector
-            selector.add(potentialId);
-            
-            // Remove potential id from the selector
-            potentials.removeInt(index);
+            selector.add(potential);
         }
         
         // Sanity check
@@ -590,9 +656,13 @@ public class StarTowerGame {
         this.pendingSubNotes = amount;
     }
     
+    public int getRandomSubNoteId() {
+        return Utils.randomElement(this.getSubNoteDropList());
+    }
+    
     private PlayerChangeInfo addRandomSubNoteSkills(PlayerChangeInfo change) {
+        int id = this.getRandomSubNoteId();
         int count = Utils.randomRange(1, 3);
-        int id = Utils.randomElement(this.getSubNoteDropList());
         
         this.addItem(id, count, change);
         
@@ -637,11 +707,11 @@ public class StarTowerGame {
             rsp.getMutableNilResp();
         }
         
-        // Add any items
+        // Add any sub note skills
         var data = rsp.getMutableData();
         
         if (this.getNewInfos().size() > 0) {
-            // Add item protos
+            // Add sub note skills to the proto
             for (var entry : this.getNewInfos()) {
                 var info = SubNoteSkillInfo.newInstance()
                         .setTid(entry.getIntKey())
@@ -650,11 +720,39 @@ public class StarTowerGame {
                 data.getMutableInfos().add(info);
             }
             
-            // Clear
+            // Refresh secondary skills
+            var newSecondarySkills = SecondarySkillDef.calculateSecondarySkills(this.getDiscIds(), this.getItems());
+            
+            // Add any new secondary skills to the data proto
+            for (int id : newSecondarySkills) {
+                if (!this.getSecondarySkills().contains(id)) {
+                    var info = ActiveSecondaryChange.newInstance()
+                            .setSecondaryId(id)
+                            .setActive(true);
+                    
+                    data.addSecondaries(info);
+                }
+            }
+            
+            // Inform the client that these skills are no longer active
+            for (int id : this.getSecondarySkills()) {
+                if (!newSecondarySkills.contains(id)) {
+                    var info = ActiveSecondaryChange.newInstance()
+                            .setSecondaryId(id)
+                            .setActive(false);
+                    
+                    data.addSecondaries(info);
+                }
+            }
+            
+            // Set new secondary skills
+            this.secondarySkills = newSecondarySkills;
+            
+            // Clear new infos
             this.getNewInfos().clear();
         }
         
-        // Set these protos
+        // Always add this proto
         rsp.getMutableChange();
         
         // Return response proto
@@ -687,15 +785,38 @@ public class StarTowerGame {
     public StarTowerInfo toProto() {
         var proto = StarTowerInfo.newInstance();
         
-        proto.getMutableMeta()
+        var meta = proto.getMutableMeta()
             .setId(this.getId())
             .setCharHp(this.getCharHp())
             .setTeamLevel(this.getTeamLevel())
-            .setNPCInteractions(1)
+            .setNPCInteractions(0)
+            .setTotalTime(this.getBattleTime())
             .setBuildId(this.getBuildId());
         
-        this.getChars().forEach(proto.getMutableMeta()::addChars);
-        this.getDiscs().forEach(proto.getMutableMeta()::addDiscs);
+        // Set characters + discs
+        for (int i = 0; i < 3; i++) {
+            var character = this.getCharByIndex(i);
+            
+            if (character != null) {
+                meta.addChars(character.toStarTowerProto());
+            } else {
+                meta.addChars(StarTowerChar.newInstance());
+            }
+        }
+        for (int i = 0; i < 6; i++) {
+            var disc = this.getDiscByIndex(i);
+            
+            if (disc != null) {
+                meta.addDiscs(disc.toStarTowerProto());
+            } else {
+                meta.addDiscs(StarTowerDisc.newInstance());
+            }
+        }
+        
+        // Add secondary skills
+        for (int id : this.getSecondarySkills()) {
+            meta.addActiveSecondaryIds(id);
+        }
         
         // Set room data
         proto.setRoom(this.getRoom().toProto());

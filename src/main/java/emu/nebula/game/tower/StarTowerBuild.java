@@ -7,6 +7,7 @@ import dev.morphia.annotations.Id;
 import dev.morphia.annotations.Indexed;
 import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
+import emu.nebula.data.resources.SecondarySkillDef;
 import emu.nebula.database.GameDatabaseObject;
 import emu.nebula.game.character.GameCharacter;
 import emu.nebula.game.character.GameDisc;
@@ -20,6 +21,7 @@ import emu.nebula.proto.PublicStarTower.StarTowerBuildInfo;
 import emu.nebula.proto.PublicStarTower.TowerBuildChar;
 import emu.nebula.util.Snowflake;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.Getter;
 
 @Getter
@@ -42,6 +44,8 @@ public class StarTowerBuild implements GameDatabaseObject {
     private ItemParamMap potentials;
     private ItemParamMap subNoteSkills;
     
+    private IntSet secondarySkills;
+    
     @Deprecated
     public StarTowerBuild() {
         
@@ -60,17 +64,9 @@ public class StarTowerBuild implements GameDatabaseObject {
         // Initialize basic variables
         this(game.getPlayer());
         
-        // Characters
-        this.charIds = game.getChars().stream()
-                .filter(c -> c.getId() > 0)
-                .mapToInt(c -> c.getId())
-                .toArray();
-        
-        // Discs
-        this.discIds = game.getDiscs().stream()
-                .filter(d -> d.getId() > 0)
-                .mapToInt(d -> d.getId())
-                .toArray();
+        // Set char/disc ids
+        this.charIds = game.getCharIds();
+        this.discIds = game.getDiscIds();
         
         // Add potentials
         for (var entry : game.getPotentials()) {
@@ -93,6 +89,9 @@ public class StarTowerBuild implements GameDatabaseObject {
         for (var entry : game.getItems()) {
             this.getSubNoteSkills().put(entry.getIntKey(), entry.getIntValue());
         }
+        
+        // Set secondary skills
+        this.secondarySkills = game.getSecondarySkills();
         
         // Caclulate record score and cache it
         this.calculateScore();
@@ -135,7 +134,7 @@ public class StarTowerBuild implements GameDatabaseObject {
         // Clear score
         this.score = 0;
         
-        // Potentials
+        // Add score from potentials
         for (var potential : this.getPotentials().int2IntEntrySet()) {
             var data = GameData.getPotentialDataTable().get(potential.getIntKey());
             if (data == null) continue;
@@ -143,9 +142,22 @@ public class StarTowerBuild implements GameDatabaseObject {
             this.score += data.getBuildScore(potential.getIntValue());
         }
         
-        // Sub note skills
+        // Add score from sub note skills
         for (var item : this.getSubNoteSkills()) {
             this.score += item.getIntValue() * 15;
+        }
+        
+        // Check secondary skills
+        if (this.getSecondarySkills() == null) {
+            this.secondarySkills = SecondarySkillDef.calculateSecondarySkills(this.getDiscIds(), this.getSubNoteSkills());
+        }
+        
+        // Add score from secondary skills
+        for (int id : this.getSecondarySkills()) {
+            var data = GameData.getSecondarySkillDataTable().get(id);
+            if (data == null) continue;
+            
+            this.score += data.getScore();
         }
         
         // Complete
@@ -202,6 +214,11 @@ public class StarTowerBuild implements GameDatabaseObject {
                     .setQty(entry.getIntValue());
             
             proto.addSubNoteSkills(skill);
+        }
+        
+        // Secondary skills
+        for (int id : this.getSecondarySkills()) {
+            proto.addActiveSecondaryIds(id);
         }
         
         return proto;

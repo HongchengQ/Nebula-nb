@@ -327,9 +327,18 @@ public class StarTowerManager extends PlayerManager {
     // Database
     
     public void loadFromDatabase() {
+        // Init builds
         this.builds = new Long2ObjectOpenHashMap<>();
         
+        // Load builds with the current player's uid
         Nebula.getGameDatabase().getObjects(StarTowerBuild.class, "playerUid", getPlayerUid()).forEach(build -> {
+            // Fix outdated builds
+            if (build.getSecondarySkills() == null) {
+                build.calculateScore();
+                build.save();
+            }
+            
+            // Add build
             this.builds.put(build.getUid(), build);
         });
     }

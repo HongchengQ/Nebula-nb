@@ -18,6 +18,9 @@ public class DiscDef extends BaseDef {
     private int TransformItemId;
     private int[] MaxStarTransformItem;
     private int[] ReadReward;
+    
+    private int SecondarySkillGroupId1;
+    private int SecondarySkillGroupId2;
     private int SubNoteSkillGroupId;
     
     private transient ElementType elementType;
