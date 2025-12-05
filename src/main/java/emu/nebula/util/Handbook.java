@@ -20,6 +20,7 @@ import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
 import emu.nebula.data.ResourceType;
 import emu.nebula.data.resources.CharacterDef;
+import emu.nebula.data.resources.DiscDef;
 import emu.nebula.data.resources.ItemDef;
 
 import com.google.gson.Gson;
@@ -99,10 +100,9 @@ public class Handbook {
         langList.add("zh_CN");
 
         for (String lang : langList) {
-            // Generate characters JSON
             generateCharactersJson(gson, lang);
-            // Generate items JSON
             generateItemsJson(gson, lang);
+            generateDiscsJson(gson, lang);
         }
     }
     private static void generateCharactersJson(Gson gson, String lang) {
@@ -131,6 +131,41 @@ public class Handbook {
 
                 JsonObject root = new JsonObject();
                 root.add("characters", charactersArray);
+
+                writer.println(gson.toJson(root));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void generateDiscsJson(Gson gson, String lang) {
+        try {
+            // 创建目录
+            Path outputPath = Paths.get("./JSON output/" + lang);
+            Files.createDirectories(outputPath);
+
+            try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(
+                    new FileOutputStream(outputPath.resolve("Discs.json").toFile()), StandardCharsets.UTF_8), true)) {
+                Map<String, String> languageKey = loadLanguageKeyToJSON(ItemDef.class, lang);
+                List<Integer> list = GameData.getDiscDataTable().keySet().intStream().sorted().boxed().toList();
+
+                JsonArray charactersArray = new JsonArray();
+
+                for (int id : list) {
+                    DiscDef data = GameData.getDiscDataTable().get(id);
+                    ItemDef itemData = GameData.getItemDataTable().get(id);
+                    JsonObject characterObj = new JsonObject();
+
+                    characterObj.addProperty("id", data.getId());
+                    characterObj.addProperty("name", languageKey.getOrDefault(itemData.getTitle(), itemData.getTitle()));
+                    characterObj.addProperty("element", data.getElementType().toString());
+
+                    charactersArray.add(characterObj);
+                }
+
+                JsonObject root = new JsonObject();
+                root.add("discs", charactersArray);
 
                 writer.println(gson.toJson(root));
             }
