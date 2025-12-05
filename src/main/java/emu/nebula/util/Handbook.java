@@ -292,7 +292,7 @@ public class Handbook {
                     JsonObject itemObj = new JsonObject();
 
                     itemObj.addProperty("id", data.getId());
-                    itemObj.addProperty("title", languageKey.getOrDefault(itemData.getTitle(), itemData.getTitle()));
+                    itemObj.addProperty("name", languageKey.getOrDefault(itemData.getTitle(), itemData.getTitle()));
                     itemObj.addProperty("type", "NONE");
 
                     itemsArray.add(itemObj);
