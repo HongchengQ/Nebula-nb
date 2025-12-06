@@ -821,7 +821,7 @@ public class Player implements GameDatabaseObject {
         
         // Set player states
         var state = proto.getMutableState()
-            .setStorySet(true)
+            .setStorySet(this.getStoryManager().hasNew())
             .setFriend(this.getFriendList().hasPendingRequests());
         
         state.getMutableMail()
