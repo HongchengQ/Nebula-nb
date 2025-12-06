@@ -4,6 +4,7 @@ import java.util.Collections;
 
 import emu.nebula.GameConstants;
 import emu.nebula.data.resources.StarTowerEventDef;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.game.player.PlayerChangeInfo;
 import emu.nebula.proto.PublicStarTower.NPCAffinityInfo;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
@@ -253,6 +254,11 @@ public class StarTowerNpcEventCase extends StarTowerBaseCase {
         // Set success result
         success.setOptionsResult(completed);
         this.completed = completed;
+        
+        // Achievment
+        if (completed) {
+            this.getGame().getAchievementManager().trigger(AchievementCondition.TowerEventTimes, 1);
+        }
         
         // Complete
         return rsp;

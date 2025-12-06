@@ -10,6 +10,9 @@ import emu.nebula.data.GameData;
 import emu.nebula.data.resources.SecondarySkillDef;
 import emu.nebula.data.resources.StarTowerDef;
 import emu.nebula.data.resources.StarTowerStageDef;
+import emu.nebula.game.achievement.AchievementCondition;
+import emu.nebula.game.achievement.AchievementManager;
+import emu.nebula.game.character.ElementType;
 import emu.nebula.game.character.GameCharacter;
 import emu.nebula.game.character.GameDisc;
 import emu.nebula.game.formation.Formation;
@@ -187,6 +190,10 @@ public class StarTowerGame {
         return this.manager.getPlayer();
     }
     
+    public AchievementManager getAchievementManager() {
+        return this.getPlayer().getAchievementManager();
+    }
+    
     public StarTowerBuild getBuild() {
         if (this.build == null) {
             this.build = new StarTowerBuild(this);
@@ -197,6 +204,31 @@ public class StarTowerGame {
     
     public int getDifficulty() {
         return this.getData().getDifficulty();
+    }
+    
+    /**
+     * Gets the team element, if the team has 2+ or more elements, then returns null
+     */
+    public ElementType getTeamElement() {
+        ElementType type = null;
+        
+        for (int id : this.getCharIds()) {
+            var character = this.getPlayer().getCharacters().getCharacterById(id);
+            if (character == null) {
+                return null;
+            }
+            
+            if (type == null) {
+                type = character.getData().getElementType();
+                continue;
+            }
+            
+            if (type != character.getData().getElementType()) {
+                return null;
+            }
+        }
+        
+        return type;
     }
     
     public GameCharacter getCharByIndex(int index) {
@@ -276,6 +308,9 @@ public class StarTowerGame {
         } else {
             this.room = new StarTowerBaseRoom(this, stage);
         }
+        
+        // Trigger achievement
+        this.getAchievementManager().trigger(AchievementCondition.TowerEnterRoom, 1, stage.getRoomType() + 1, 0);
         
         // Create cases for the room
         this.room.onEnter();
@@ -409,6 +444,11 @@ public class StarTowerGame {
                 
                 // Add to new infos
                 this.getNewInfos().add(id, count);
+                
+                // Achievment
+                if (count > 0) {
+                    this.getAchievementManager().trigger(AchievementCondition.TowerItemsGet, count, id, 0);
+                }
             }
             case Res -> {
                 // Sanity check to make sure we dont remove more than what we have
@@ -425,6 +465,11 @@ public class StarTowerGame {
                         .setQty(count);
                 
                 change.add(info);
+                
+                // Achievment
+                if (count > 0) {
+                    this.getAchievementManager().trigger(AchievementCondition.TowerItemsGet, count, id, 0);
+                }
             }
             default -> {
                 // Ignored
@@ -775,7 +820,14 @@ public class StarTowerGame {
         
         // Log victory
         if (isWin) {
+            // Add star tower history
             this.getManager().getPlayer().getProgress().addStarTowerLog(this.getId());
+            
+            // Trigger achievement
+            var elementType = this.getTeamElement();
+            if (elementType != null) {
+                this.getAchievementManager().trigger(AchievementCondition.TowerClearSpecificCharacterTypeWithTotal, 1, elementType.getValue(), 0);
+            }
         }
         
         // Complete

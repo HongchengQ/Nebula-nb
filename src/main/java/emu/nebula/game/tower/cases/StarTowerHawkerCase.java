@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import emu.nebula.GameConstants;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.game.player.PlayerChangeInfo;
 import emu.nebula.game.tower.StarTowerShopGoods;
 import emu.nebula.proto.PublicStarTower.HawkerCaseData;
@@ -169,6 +170,9 @@ public class StarTowerHawkerCase extends StarTowerBaseCase {
         
         // Set change info
         rsp.setChange(change.toProto());
+        
+        // Achievement
+        this.getGame().getAchievementManager().trigger(AchievementCondition.TowerSpecificShopReRollTotal, 1);
     }
     
     private void buy(int sid, StarTowerInteractResp rsp) {
@@ -204,6 +208,9 @@ public class StarTowerHawkerCase extends StarTowerBaseCase {
         
         // Remove coins
         this.getGame().addItem(GameConstants.TOWER_COIN_ITEM_ID, -price, change);
+        
+        // Achievement
+        this.getGame().getAchievementManager().trigger(AchievementCondition.TowerSpecificDifficultyShopBuyTimes, 1);
         
         // Set change info
         rsp.setChange(change.toProto());

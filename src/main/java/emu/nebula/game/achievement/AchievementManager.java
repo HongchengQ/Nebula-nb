@@ -138,6 +138,14 @@ public class AchievementManager extends PlayerManager implements GameDatabaseObj
         }
     }
     
+    public synchronized void trigger(AchievementCondition condition, int progress) {
+        this.trigger(condition.getValue(), progress, 0, 0);
+    }
+    
+    public synchronized void trigger(AchievementCondition condition, int progress, int param1, int param2) {
+        this.trigger(condition.getValue(), progress, param1, param2);
+    }
+    
     public synchronized void trigger(int condition, int progress, int param1, int param2) {
         // Sanity check
         if (progress <= 0) {
