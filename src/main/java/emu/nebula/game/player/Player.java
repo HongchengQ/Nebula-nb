@@ -828,7 +828,7 @@ public class Player implements GameDatabaseObject {
             .setNew(this.getMailbox().hasNewMail());
         
         state.getMutableBattlePass()
-            .setState(1);
+            .setState(this.getBattlePassManager().hasNew() ? 1 : 0);
 
         state.getMutableAchievement()
             .setNew(this.getAchievementManager().hasNewAchievements());
