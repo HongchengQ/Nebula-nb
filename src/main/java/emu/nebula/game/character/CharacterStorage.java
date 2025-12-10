@@ -58,12 +58,22 @@ public class CharacterStorage extends PlayerManager {
             return null;
         }
         
-        return this.addCharacter(GameData.getCharacterDataTable().get(charId));
+        // Get data
+        var data = GameData.getCharacterDataTable().get(charId);
+        if (data == null) return null;
+        
+        // Add character
+        return this.addCharacter(data);
     }
 
-    private GameCharacter addCharacter(CharacterDef data) {
+    public GameCharacter addCharacter(CharacterDef data) {
         // Sanity check to make sure we dont have this character already
         if (this.hasCharacter(data.getId())) {
+            return null;
+        }
+        
+        // Prevent players from getting unavliable characters
+        if (!data.isAvailable()) {
             return null;
         }
         
@@ -127,12 +137,22 @@ public class CharacterStorage extends PlayerManager {
             return null;
         }
         
-        return this.addDisc(GameData.getDiscDataTable().get(discId));
+        // Get data
+        var data = GameData.getDiscDataTable().get(discId);
+        if (data == null) return null;
+        
+        // Add disc
+        return this.addDisc(data);
     }
 
-    private GameDisc addDisc(DiscDef data) {
-        // Sanity check to make sure we dont have this character already
+    public GameDisc addDisc(DiscDef data) {
+        // Sanity check to make sure we dont have this disc already
         if (this.hasDisc(data.getId())) {
+            return null;
+        }
+        
+        // Prevent players from getting unavliable discs
+        if (!data.isAvailable()) {
             return null;
         }
         

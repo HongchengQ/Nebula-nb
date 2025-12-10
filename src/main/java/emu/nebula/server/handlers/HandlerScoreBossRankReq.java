@@ -17,7 +17,7 @@ public class HandlerScoreBossRankReq extends NetHandler {
                 .setLastRefreshTime(Nebula.getCurrentTime());
         
         // Get self
-        var self = session.getPlayer().getScoreBossManager().getRanking();
+        var self = session.getPlayer().getScoreBossManager().getRankEntry();
         
         if (self != null) {
             rsp.setSelf(self.toProto());

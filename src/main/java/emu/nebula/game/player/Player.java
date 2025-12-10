@@ -35,6 +35,7 @@ import emu.nebula.game.vampire.VampireSurvivorManager;
 import emu.nebula.net.GameSession;
 import emu.nebula.net.NetMsgId;
 import emu.nebula.net.NetMsgPacket;
+import emu.nebula.proto.Notify.SigninRewardUpdate;
 import emu.nebula.proto.PlayerData.DictionaryEntry;
 import emu.nebula.proto.PlayerData.DictionaryTab;
 import emu.nebula.proto.PlayerData.PlayerInfo;
@@ -84,6 +85,8 @@ public class Player implements GameDatabaseObject {
     private int energy;
     private long energyLastUpdate;
    
+    private int signInIndex;
+    
     private long lastEpochDay;
     private long lastLogin;
     private long createTime;
@@ -185,23 +188,26 @@ public class Player implements GameDatabaseObject {
     }
     
     public void setSession(GameSession session) {
-        if (this.session != null) {
-            // Sanity check
-            if (this.session == session) {
-                return;
-            }
-            
-            // Clear player from session
-            this.session.clearPlayer();
+        // Don't set session if it's the same session
+        if (this.session == session) {
+            return;
         }
+        
+        // Cache previous session
+        var prevSession = this.session;
         
         // Set session
         this.session = session;
-    }
-    
-    public void removeSession() {
-        this.session = null;
-        Nebula.getGameContext().getPlayerModule().removeFromCache(this);
+        
+        // Clear player reference from the previous session
+        if (prevSession != null) {
+            prevSession.clearPlayer();
+        }
+        
+        // We cleared session, now remove player from cache
+        if (this.session == null) {
+            Nebula.getGameContext().getPlayerModule().removeFromCache(this);
+        }
     }
     
     public boolean hasSession() {
@@ -226,14 +232,12 @@ public class Player implements GameDatabaseObject {
 
     public void setRemoteToken(String token) {
         // Skip if tokens are the same
-        if (this.remoteToken == null) {
+        if (this.getRemoteToken() == null) {
             if (token == null) {
                 return;
             }
-        } else if (this.remoteToken != null) {
-            if (this.remoteToken.equals(token)) {
-                return;
-            }
+        } else if (this.getRemoteToken().equals(token)) {
+            return;
         }
         
         // Set remote token
@@ -605,6 +609,13 @@ public class Player implements GameDatabaseObject {
     public void checkResetDailies() {
         // Sanity check to make sure daily reset isnt being triggered wrong
         if (Nebula.getGameContext().getEpochDays() <= this.getLastEpochDay()) {
+            // Fix sign-in index
+            // TODO remove later
+            if (this.getSignInIndex() <= 0) {
+                this.getSignInRewards(false);
+            }
+            
+            // End
             return;
         }
         
@@ -613,21 +624,78 @@ public class Player implements GameDatabaseObject {
         int curWeek = Utils.getWeeks(this.getLastEpochDay());
         boolean hasWeekChanged = Nebula.getGameContext().getEpochWeeks() > curWeek;
         
+        // Check if month was changed
+        int curMonth = Utils.getMonths(this.getLastEpochDay());
+        boolean hasMonthChanged = Nebula.getGameContext().getEpochMonths() > curMonth;
+        
         // Reset dailies
-        this.resetDailies(hasWeekChanged);
+        this.resetDailies(hasWeekChanged, hasMonthChanged);
         
         // Trigger quest/achievement login
         this.trigger(QuestCondition.LoginTotal, 1);
+
+        // Give sign-in rewards
+        this.getSignInRewards(hasMonthChanged);
         
         // Update last epoch day
         this.lastEpochDay = Nebula.getGameContext().getEpochDays();
         Nebula.getGameDatabase().update(this, this.getUid(), "lastEpochDay", this.lastEpochDay);
     }
+    
+    private void getSignInRewards(boolean resetMonthly) {
+        // Check monthly reset
+        if (resetMonthly) {
+            this.signInIndex = 0;
+        }
+        
+        // Get next sign-in index
+        int nextSignIn = this.signInIndex + 1;
+        int group = Utils.getDaysOfMonth(this.getLastEpochDay());
+        
+        var data = GameData.getSignInDataTable().get((group << 16) + nextSignIn);
+        if (data == null) {
+            return;
+        }
+        
+        // Add rewards
+        var change = this.getInventory().addItem(data.getItemId(), data.getItemQty());
+        
+        // Add package
+        this.addNextPackage(
+            NetMsgId.signin_reward_change_notify, 
+            SigninRewardUpdate.newInstance()
+                .setIndex(nextSignIn)
+                .setSwitch(resetMonthly)
+                .setChange(change.toProto())
+        );
+        
+        // Update sign-in index
+        this.signInIndex = nextSignIn;
+        Nebula.getGameDatabase().update(this, this.getUid(), "signInIndex", this.signInIndex);
+    }
 
-    public void resetDailies(boolean resetWeekly) {
+    public void resetDailies(boolean resetWeekly, boolean resetMonthly) {
         // Reset daily quests
         this.getQuestManager().resetDailyQuests();
         this.getBattlePassManager().getBattlePass().resetDailyQuests(resetWeekly);
+        
+        // Check to reset weeklies
+        if (resetWeekly) {
+            // Add weekly boss entry item
+            int entries = this.getInventory().getResourceCount(GameConstants.WEEKLY_ENTRY_ITEM_ID);
+            if (entries < 3) {
+                this.getInventory().addItem(GameConstants.WEEKLY_ENTRY_ITEM_ID, 3 - entries);
+            }
+            
+            // Reset weekly tower tickets
+            this.getProgress().clearWeeklyTowerTicketLog();
+        }
+        
+        // Check if we need to reset monthly
+        if (resetMonthly) {
+            // Reset monthly shop purchases
+            this.getInventory().resetShopPurchases();
+        }
     }
     
     // Trigger quests + achievements
@@ -711,6 +779,11 @@ public class Player implements GameDatabaseObject {
         // Load complete
         this.loaded = true;
     }
+
+    public void onCreate() {
+        // Send welcome mail
+        this.getMailbox().sendWelcomeMail();
+    }
     
     public void onLogin() {
         // See if we need to reset dailies
@@ -748,6 +821,8 @@ public class Player implements GameDatabaseObject {
     public PlayerInfo toProto() {
         PlayerInfo proto = PlayerInfo.newInstance()
                 .setServerTs(Nebula.getCurrentTime())
+                .setSigninIndex(this.getSignInIndex())
+                .setTowerTicket(this.getProgress().getTowerTickets())
                 .setDailyShopRewardStatus(this.getQuestManager().hasDailyReward())
                 .setAchievements(new byte[64]);
         
@@ -821,7 +896,7 @@ public class Player implements GameDatabaseObject {
         
         // Set player states
         var state = proto.getMutableState()
-            .setStorySet(true)
+            .setStorySet(this.getStoryManager().hasNew())
             .setFriend(this.getFriendList().hasPendingRequests());
         
         state.getMutableMail()

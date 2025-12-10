@@ -20,7 +20,7 @@ import java.util.HashSet;
         aliases = {"cl", "clear"},
         permission = "player.inventory",
         requireTarget = true,
-        desc = "!clean [all | {id} ...] [items|resources]. Removes items/resources from the targeted player."
+        desc = "!clean [all | {id} ...] [items|resources] = Removes items/resources from the targeted player."
 )
 public class CleanCommand implements CommandHandler {
 

@@ -5,7 +5,7 @@ import emu.nebula.command.CommandArgs;
 import emu.nebula.command.CommandHandler;
 import emu.nebula.net.NetMsgId;
 
-@Command(label = "battlepass", aliases = {"bp"}, permission = "player.battlepass", desc = "/battlepass [free | premium] lv(level). mMdifies your battle pass")
+@Command(label = "battlepass", aliases = {"bp"}, permission = "player.battlepass", desc = "!battlepass [free | premium] lv(level) = Modifies the targeted player's battle pass")
 public class BattlePassCommand implements CommandHandler {
 
     @Override

@@ -14,7 +14,7 @@ import emu.nebula.util.Utils;
     aliases = {"m"},
     permission = "player.mail",
     requireTarget = true,
-    desc = "/mail \"subject\" \"body\" [itemId xQty | itemId:qty ...]. Sends the targeted player a system mail."
+    desc = "!mail \"subject\" \"body\" [itemId xQty | itemId:qty ...] = Sends the targeted player a system mail."
 )
 public class MailCommand implements CommandHandler {
     private static final String USAGE_TEXT = "Usage: /mail \"subject\" \"body\" [itemId xQty | itemId:qty ...]";

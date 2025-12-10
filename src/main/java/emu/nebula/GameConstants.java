@@ -6,22 +6,25 @@ import emu.nebula.game.inventory.ItemParam;
 import emu.nebula.util.WeightedList;
 
 public class GameConstants {
-    public static final String VERSION = "1.2.0";
+    public static final String VERSION = "1.3.0";
     public static int DATA_VERSION = 0;
     
     // Set data versions for each region
     static {
         RegionConfig.getRegion("global")
-            .setDataVersion(63);
-        
-        RegionConfig.getRegion("kr")
-            .setDataVersion(70);
-        
-        RegionConfig.getRegion("jp")
             .setDataVersion(66);
         
+        RegionConfig.getRegion("kr")
+            .setDataVersion(73);
+        
+        RegionConfig.getRegion("jp")
+            .setDataVersion(69);
+        
         RegionConfig.getRegion("tw")
-            .setDataVersion(64);
+            .setDataVersion(67);
+
+        RegionConfig.getRegion("cn")
+            .setDataVersion(67);
     }
     
     public static final ZoneId UTC_ZONE = ZoneId.of("UTC");
@@ -35,6 +38,7 @@ public class GameConstants {
     public static final int PREM_GEM_ITEM_ID = 3;
     public static final int ENERGY_BUY_ITEM_ID = GEM_ITEM_ID;
     public static final int EXP_ITEM_ID = 21;
+    public static final int WEEKLY_ENTRY_ITEM_ID = 28;
     
     public static final int MAX_ENERGY = 240;
     public static final int ENERGY_REGEN_TIME = 360; // Seconds

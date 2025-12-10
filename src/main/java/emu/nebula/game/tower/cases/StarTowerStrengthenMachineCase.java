@@ -1,6 +1,7 @@
 package emu.nebula.game.tower.cases;
 
 import emu.nebula.GameConstants;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractReq;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractResp;
@@ -69,6 +70,9 @@ public class StarTowerStrengthenMachineCase extends StarTowerBaseCase {
             
             // Increment price
             this.increasePrice();
+            
+            // Achievement
+            this.getGame().getAchievementManager().trigger(AchievementCondition.TowerSpecificDifficultyStrengthenMachineTotal, 1);
         }
         
         // Set success result

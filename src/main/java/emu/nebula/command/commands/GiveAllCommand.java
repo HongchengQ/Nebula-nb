@@ -84,7 +84,11 @@ public class GiveAllCommand implements CommandHandler {
                     var disc = target.getCharacters().addDisc(data.getId());
                     
                     // Set properties
-                    args.setProperties(disc);
+                    boolean shouldSave = args.setProperties(disc);
+                    
+                    if (shouldSave) {
+                        disc.save();
+                    }
                     
                     // Add to change info
                     change.add(disc.toProto());
@@ -110,7 +114,11 @@ public class GiveAllCommand implements CommandHandler {
                     var character = target.getCharacters().addCharacter(data.getId());
                     
                     // Set properties
-                    args.setProperties(character);
+                    boolean shouldSave = args.setProperties(character);
+                    
+                    if (shouldSave) {
+                        character.save();
+                    }
                     
                     // Add to change info
                     change.add(character.toProto());

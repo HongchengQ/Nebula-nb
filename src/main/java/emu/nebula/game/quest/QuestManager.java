@@ -132,7 +132,6 @@ public class QuestManager extends PlayerManager implements GameDatabaseObject {
         }
     }
     
-    
     /**
      * Update this quest on the player client
      */

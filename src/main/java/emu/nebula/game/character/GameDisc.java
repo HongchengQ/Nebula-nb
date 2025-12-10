@@ -245,9 +245,11 @@ public class GameDisc implements GameDatabaseObject {
         // Remove items
         var change = this.getPlayer().getInventory().removeItems(materials, null);
         
-        // Add star
+        // Cache old star value
         int old = this.star;
-        this.star = Math.max(this.star + count, 5);
+        
+        // Add star
+        this.star = Math.min(this.star + count, 5);
         
         // Save to database if star count changed
         if (this.star != old) {

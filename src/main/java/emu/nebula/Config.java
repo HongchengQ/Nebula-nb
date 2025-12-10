@@ -101,14 +101,21 @@ public class Config {
 
     @Getter
     public static class ServerOptions {
+        // Default permissions for accounts. By default, all commands are allowed. Reccomended to change if making a public server.
         public Set<String> defaultPermissions = Set.of("*");
+        // Automatically creates an account when a player logs in for the first time on a new email.
         public boolean autoCreateAccount = true;
+        // Skips the intro cinematics/stage when starting a new account.
         public boolean skipIntro = false;
+        // Unlocks all instances (Monolith, Bounty Trials, etc) for players to enter without needing to do the previous levels.
         public boolean unlockInstances = true;
-        public int sessionTimeout = 600; // How long to wait (in seconds) after the last http request from a session
-                                         // before removing it from the server
+        // How long to wait (in seconds) after the last http request from a session before removing it from the server.
+        public int sessionTimeout = 300;
+        // The offset hour for when daily quests are refreshed in UTC. Example: "dailyResetHour = 4" means dailies will be refreshed at UTC+4 12:00 AM every day.
         public int dailyResetHour = 0;
-        public int leaderboardRefreshTime = 60; // Leaderboard refresh time in seconds
+        // Leaderboard for Boss Blitz refresh time in seconds.
+        public int leaderboardRefreshTime = 60;
+        // The welcome mail to send when a player is created. Set to null to disable.
         public WelcomeMail welcomeMail = new WelcomeMail();
     }
 
@@ -121,6 +128,7 @@ public class Config {
     public static class LogOptions {
         public boolean commands = true;
         public boolean packets = false;
+        public boolean httpDebug = false;
     }
 
     @Getter

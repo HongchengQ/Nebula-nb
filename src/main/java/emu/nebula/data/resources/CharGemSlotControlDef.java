@@ -3,6 +3,7 @@ package emu.nebula.data.resources;
 import emu.nebula.data.BaseDef;
 import emu.nebula.data.GameData;
 import emu.nebula.data.ResourceType;
+import emu.nebula.data.custom.CharGemAttrGroupDef;
 import emu.nebula.util.CustomIntArray;
 import emu.nebula.util.Utils;
 import emu.nebula.util.WeightedList;

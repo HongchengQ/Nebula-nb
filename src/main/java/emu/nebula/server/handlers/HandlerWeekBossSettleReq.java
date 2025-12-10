@@ -7,7 +7,6 @@ import emu.nebula.proto.WeekBossSettle.WeekBossSettleReq;
 import emu.nebula.net.HandlerId;
 import emu.nebula.data.GameData;
 import emu.nebula.game.instance.InstanceSettleData;
-import emu.nebula.game.quest.QuestCondition;
 import emu.nebula.net.GameSession;
 
 @HandlerId(NetMsgId.week_boss_settle_req)
@@ -28,12 +27,9 @@ public class HandlerWeekBossSettleReq extends NetHandler {
         var req = WeekBossSettleReq.parseFrom(message);
         
         // Settle instance
-        var changes = player.getInstanceManager().settleInstance(
+        var changes = player.getInstanceManager().settleWeekly(
                 data,
-                QuestCondition.WeekBoosClearSpecificDifficultyAndTotal,
-                player.getProgress().getWeekBossLog(),
-                "weekBossLog",
-                req.getResult() ? 1 : 0
+                req.getResult()
         );
         
         var settleData = (InstanceSettleData) changes.getExtraData();

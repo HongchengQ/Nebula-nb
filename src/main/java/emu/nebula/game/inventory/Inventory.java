@@ -7,6 +7,7 @@ import dev.morphia.annotations.Id;
 import emu.nebula.GameConstants;
 import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
+import emu.nebula.data.resources.DropPkgDef;
 import emu.nebula.data.resources.MallShopDef;
 import emu.nebula.data.resources.ResidentGoodsDef;
 import emu.nebula.database.GameDatabaseObject;
@@ -284,8 +285,8 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
             change = new PlayerChangeInfo();
         }
         
-        // Sanity
-        if (count == 0) {
+        // Sanity check
+        if (id <= 0 || count == 0) {
             return change;
         }
         
@@ -339,11 +340,32 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
                 }
             }
             case Item -> {
+                // Check if item is a random package
+                if (data.getItemSubType() == ItemSubType.RandomPackage && data.getUseParams() != null) {
+                    // Cannot remove packages
+                    if (count <= 0) break;
+                    
+                    // Add random packages
+                    for (var entry : data.getUseParams()) {
+                        int pkgId = entry.getIntKey();
+                        int pkgCount = entry.getIntValue() * count;
+                        
+                        for (int i = 0; i < pkgCount; i++) {
+                            int pkgDropId = DropPkgDef.getRandomDrop(pkgId);
+                            this.addItem(pkgDropId, 1, change);
+                        }
+                    }
+                    
+                    // End early
+                    break;
+                }
+                
+                // Get item
                 var item = this.items.get(id);
                 int diff = 0;
                 
                 if (amount > 0) {
-                    // Add resource
+                    // Add item
                     if (item == null) {
                         item = new GameItem(this.getPlayer(), id, amount);
                         this.items.put(item.getItemId(), item);
@@ -377,25 +399,51 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
                 }
             }
             case Disc -> {
-                if (amount <= 0) {
+                // Cannot remove discs
+                if (amount <= 0) break;
+                
+                // Get disc data
+                var discData = GameData.getDiscDataTable().get(id);
+                if (discData == null) break;
+                
+                // Add transform item instead if we already have this disc
+                if (getPlayer().getCharacters().hasDisc(id)) {
+                    this.addItem(discData.getTransformItemId(), amount, change);
                     break;
                 }
                 
-                var disc = getPlayer().getCharacters().addDisc(id);
+                // Add disc
+                var disc = getPlayer().getCharacters().addDisc(discData);
                 
+                // Add to change info
                 if (disc != null) {
                     change.add(disc.toProto());
+                } else {
+                    amount = 0;
                 }
             }
             case Char -> {
-                if (amount <= 0) {
+                // Cannot remove characters
+                if (amount <= 0) break;
+                
+                // Get character data
+                var charData = GameData.getCharacterDataTable().get(id);
+                if (charData == null) break;
+                
+                // Add transform item instead if we already have this character
+                if (getPlayer().getCharacters().hasCharacter(id)) {
+                    this.addItem(charData.getFragmentsId(), charData.getTransformQty(), change);
                     break;
                 }
                 
-                var character = getPlayer().getCharacters().addCharacter(id);
-
+                // Add character
+                var character = getPlayer().getCharacters().addCharacter(charData);
+                
+                // Add to change info
                 if (character != null) {
                     change.add(character.toProto());
+                } else {
+                    amount = 0;
                 }
             }
             case Energy -> {
@@ -466,7 +514,7 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
         // Trigger quest + achievement
         if (amount > 0) {
             this.getPlayer().trigger(QuestCondition.ItemsAdd, amount, id);
-        } else {
+        } else if (amount < 0) {
             this.getPlayer().trigger(QuestCondition.ItemsDeplete, Math.abs(amount), id);
         }
         
@@ -823,6 +871,20 @@ public class Inventory extends PlayerManager implements GameDatabaseObject {
         
         // Success
         return change.setSuccess(true);
+    }
+    
+    public void resetShopPurchases() {
+        // Clear shop purchases if it's not empty
+        if (!this.getShopBuyCount().isEmpty()) {
+            this.getShopBuyCount().clear();
+            Nebula.getGameDatabase().update(this, this.getUid(), "shopBuyCount", this.getShopBuyCount());
+        }
+        
+        // Clear mall purchases if it's not empty
+        if (!this.getMallBuyCount().isEmpty()) {
+            this.getMallBuyCount().clear();
+            Nebula.getGameDatabase().update(this, this.getUid(), "mallBuyCount", this.getMallBuyCount());
+        }
     }
     
     // Database

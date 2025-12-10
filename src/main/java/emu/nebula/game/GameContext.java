@@ -37,6 +37,7 @@ public class GameContext implements Runnable {
     // Daily
     private long epochDays;
     private int epochWeeks;
+    private int epochMonths;
     
     public GameContext() {
         this.sessions = new Object2ObjectOpenHashMap<>();
@@ -105,12 +106,17 @@ public class GameContext implements Runnable {
         var instant = Instant.now().plusSeconds(offset);
         var date = LocalDate.ofInstant(instant, GameConstants.UTC_ZONE);
         
+        // Update epoch days
         long lastEpochDays = this.epochDays;
         this.epochDays = date.toEpochDay();
-        this.epochWeeks = Utils.getWeeks(this.epochDays);
         
         // Check if the day was changed
         if (this.epochDays > lastEpochDays) {
+            // Update epoch weeks/months
+            this.epochWeeks = Utils.getWeeks(this.epochDays);
+            this.epochMonths = Utils.getMonths(this.epochDays);
+            
+            // Reset dailies for players
             this.resetDailies();
         }
         

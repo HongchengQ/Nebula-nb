@@ -1,6 +1,6 @@
 # Nebula
 
-A work in progress game server emulator for a certain anime game.
+A work in progress game server emulator for a certain anime game. Most features are implemented.
 
 For any extra support, questions, or discussions, check out our [Discord](https://discord.gg/cskCWBqdJk).
 
@@ -19,21 +19,19 @@ For any extra support, questions, or discussions, check out our [Discord](https:
 - Commissions
 - Heartlink
 - Achievements
-- Monoliths (completeable but many other features missing)
+- Monoliths (research quests not implemented)
 - Bounty Trials
 - Menance Arena
-- Proving grounds
+- Proving Grounds
 - Catacylsm Survivor (talents not fully working)
 - Boss Blitz
-
-### Not implemented
-- Events
+- Events (Only tower defense and trials)
 
 ### Supported regions
 
 Nebula supports the global PC client by default. If you want to switch regions, you need to change the `region` field in the Nebula config.
 
-Current supported regions (PC): `GLOBAL`, `KR`, `JP`, `TW`
+Current supported regions (PC): `GLOBAL`, `KR`, `JP`, `TW`, `CN`
 
 You may need to change the data version when switching regions. The `customDataVersion` field should match the the data version of your client, which is usually the last number of your client's version string (top left of your login screen). Example: 1.0.0.42 = data version 42.
 
@@ -66,7 +64,8 @@ class Handlers
         ".stellasora.global",
         ".stellasora.kr",
         ".stellasora.jp",
-        ".stargazer-games.com"
+        ".stargazer-games.com",
+        ".yostar.cn"
     ];
 
     static function OnBeforeRequest(oS: Session) {
@@ -88,12 +87,15 @@ Server commands need to be run in the server console OR in the signature edit me
 
 ```
 !account {create | delete} [email] (reserved player uid) = Creates or deletes an account.
+!battlepass [free | premium] lv(level) = Modifies the targeted player's battle pass
 !char [all | {characterId}] lv(level) a(ascension) s(skill level) t(talent level) f(affinity level) = Changes the properties of the targeted characters.
 !clean [all | {id} ...] [items|resources] = Removes items/resources from the targeted player.
 !disc [all | {discId}] lv(level) a(ascension) c(crescendo level) = Changes the properties of the targeted discs.
 !give [item id] x[amount] = Gives the targeted player an item through the mail.
 !giveall [characters | discs | materials] = Gives the targeted player items.
+!help = Displays a list of available commands. (Very spammy in-game)
 !level (level) = Sets the player level
-!mail = Sends the targeted player a system mail.
+!mail "subject" "body" [itemId xQty | itemId:qty ...] = Sends the targeted player a system mail.
 !reload = Reloads the server config.
+!remote = Creates a player token for remote api usage
 ```

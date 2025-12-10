@@ -1,16 +1,23 @@
 package emu.nebula.game.tower.room;
 
+import java.util.Arrays;
+import java.util.Objects;
+
+import emu.nebula.GameConstants;
+import emu.nebula.data.GameData;
+import emu.nebula.data.resources.StarTowerEventDef;
 import emu.nebula.data.resources.StarTowerStageDef;
 import emu.nebula.game.tower.StarTowerGame;
 import emu.nebula.game.tower.StarTowerModifiers;
 import emu.nebula.game.tower.cases.CaseType;
 import emu.nebula.game.tower.cases.StarTowerBaseCase;
+import emu.nebula.game.tower.cases.StarTowerNpcEventCase;
 import emu.nebula.game.tower.cases.StarTowerSyncHPCase;
 import emu.nebula.proto.PublicStarTower.InteractEnterReq;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomData;
 import emu.nebula.proto.StarTowerApply.StarTowerApplyReq;
-
+import emu.nebula.util.Utils;
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
@@ -43,7 +50,7 @@ public class StarTowerBaseRoom {
         this.cases = new Int2ObjectLinkedOpenHashMap<>();
     }
     
-    public int getType() {
+    public RoomType getType() {
         return stage.getRoomType();
     }
     
@@ -73,6 +80,43 @@ public class StarTowerBaseRoom {
         this.mapTableId = req.getMapTableId();
         this.mapParam = req.getMapParam();
         this.paramId = req.getParamId();
+    }
+    
+    // NPC events
+
+    private StarTowerEventDef getRandomEvent() {
+        /*
+        var list = GameData.getStarTowerEventDataTable()
+                .values()
+                .stream()
+                .toList();
+        */
+        
+        var list = Arrays.stream(GameConstants.TOWER_EVENTS_IDS)
+                .mapToObj(GameData.getStarTowerEventDataTable()::get)
+                .filter(Objects::nonNull)
+                .toList();
+        
+        if (list.isEmpty()) {
+            return null;
+        }
+        
+        return Utils.randomElement(list);
+    }
+    
+    public StarTowerBaseCase createNpcEvent() {
+        // Get random event
+        var event = this.getRandomEvent();
+        
+        if (event == null) {
+            return null;
+        }
+        
+        // Get random npc
+        int npcId = Utils.randomElement(event.getRelatedNPCs());
+        
+        // Create case with event
+        return new StarTowerNpcEventCase(npcId, event);
     }
     
     // Cases
@@ -142,7 +186,7 @@ public class StarTowerBaseRoom {
         var proto = StarTowerRoomData.newInstance()
                 .setFloor(this.getGame().getFloorCount())
                 .setMapId(this.getMapId())
-                .setRoomType(this.getType())
+                .setRoomType(this.getType().getValue())
                 .setMapTableId(this.getMapTableId());
         
         if (this.getMapParam() != null && !this.getMapParam().isEmpty()) {

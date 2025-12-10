@@ -2,6 +2,9 @@ package emu.nebula.game.tower.cases;
 
 import java.util.List;
 
+import emu.nebula.GameConstants;
+import emu.nebula.game.achievement.AchievementCondition;
+import emu.nebula.game.tower.StarTowerGame;
 import emu.nebula.game.tower.StarTowerPotentialInfo;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractReq;
@@ -12,16 +15,40 @@ import lombok.Getter;
 @Getter
 public class StarTowerPotentialCase extends StarTowerBaseCase {
     private int teamLevel;
+    private int charId;
+    private int reroll;
+    private int rerollPrice;
+    private boolean strengthen;
     private List<StarTowerPotentialInfo> potentials;
     
-    public StarTowerPotentialCase(int teamLevel, List<StarTowerPotentialInfo> potentials) {
-        this.teamLevel = teamLevel;
+    public StarTowerPotentialCase(StarTowerGame game, boolean strengthen, List<StarTowerPotentialInfo> potentials) {
+        this(game, 0, potentials);
+        this.strengthen = strengthen;
+    }
+    
+    public StarTowerPotentialCase(StarTowerGame game, int charId, List<StarTowerPotentialInfo> potentials) {
+        this.teamLevel = game.getTeamLevel();
+        this.charId = charId;
+        this.reroll = game.getModifiers().getPotentialRerollCount();
+        this.rerollPrice = 100 - game.getModifiers().getPotentialRerollDiscount();
         this.potentials = potentials;
     }
 
     @Override
     public CaseType getType() {
         return CaseType.PotentialSelect;
+    }
+    
+    public boolean isRare() {
+        return false;
+    }
+    
+    public void setReroll(int count) {
+        this.reroll = count;
+    }
+    
+    public boolean canReroll() {
+        return this.reroll > 0;
     }
     
     public StarTowerPotentialInfo selectId(int index) {
@@ -34,12 +61,72 @@ public class StarTowerPotentialCase extends StarTowerBaseCase {
     
     @Override
     public StarTowerInteractResp interact(StarTowerInteractReq req, StarTowerInteractResp rsp) {
-        // Get selected potential
-        var index = req.getMutableSelectReq().getIndex();
+        // Get select req
+        var select = req.getMutableSelectReq();
         
+        // Handle select option
+        if (select.hasReRoll()) {
+            this.reroll(rsp);
+        } else {
+            this.select(select.getIndex(), rsp);
+        }
+        
+        return rsp;
+    }
+    
+    private void reroll(StarTowerInteractResp rsp) {
+        // Check if we can reroll
+        if (!this.canReroll()) {
+            return;
+        }
+        
+        // Check price
+        int coin = this.getGame().getResCount(GameConstants.TOWER_COIN_ITEM_ID);
+        int price = this.getRerollPrice();
+        
+        if (coin < price) {
+            return;
+        }
+        
+        // Subtract rerolls
+        int newReroll = this.reroll - 1;
+        
+        // Create reroll case
+        StarTowerPotentialCase rerollCase = null;
+        
+        if (this.isStrengthen()) {
+            rerollCase = this.getGame().createStrengthenSelector();
+        } else {
+            rerollCase = this.getGame().createPotentialSelector(this.getCharId(), this.isRare());
+        }
+        
+        if (rerollCase == null) {
+            return;
+        }
+        
+        // Clear reroll count
+        rerollCase.setReroll(newReroll);
+        
+        // Add reroll case
+        this.getRoom().addCase(rsp.getMutableCases(), rerollCase);
+        
+        // Finish subtracting rerolls
+        this.reroll = newReroll;
+        
+        // Subtract coins
+        var change = this.getGame().addItem(GameConstants.TOWER_COIN_ITEM_ID, -price);
+        
+        rsp.setChange(change.toProto());
+        
+        // Achievement
+        this.getGame().getAchievementManager().trigger(AchievementCondition.TowerSpecificPotentialReRollTotal, 1);
+    }
+    
+    private void select(int index, StarTowerInteractResp rsp) {
+        // Get selected potential
         var potential = this.selectId(index);
         if (potential == null) {
-            return rsp;
+            return;
         }
         
         // Add potential
@@ -52,11 +139,8 @@ public class StarTowerPotentialCase extends StarTowerBaseCase {
         var nextCases = this.getGame().handlePendingPotentialSelectors();
         
         for (var towerCase : nextCases) {
-            this.getGame().addCase(rsp.getMutableCases(), towerCase);
+            this.getRoom().addCase(rsp.getMutableCases(), towerCase);
         }
-        
-        // Complete
-        return rsp;
     }
     
     // Proto
@@ -68,6 +152,11 @@ public class StarTowerPotentialCase extends StarTowerBaseCase {
         
         for (var potential : this.getPotentials()) {
             select.addInfos(potential.toProto());
+        }
+        
+        if (this.canReroll()) {
+            select.setCanReRoll(true);
+            select.setReRollPrice(this.getRerollPrice());
         }
     }
 }

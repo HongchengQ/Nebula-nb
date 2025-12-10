@@ -5,6 +5,7 @@ import java.util.Map;
 
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
+
 import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
 import emu.nebula.data.resources.AchievementDef;
@@ -16,8 +17,8 @@ import emu.nebula.game.player.PlayerManager;
 import emu.nebula.net.NetMsgId;
 import emu.nebula.proto.Public.Achievements;
 import emu.nebula.proto.Public.Events;
+
 import lombok.Getter;
-import lombok.Setter;
 import us.hebi.quickbuf.RepeatedInt;
 
 @Getter
@@ -29,8 +30,9 @@ public class AchievementManager extends PlayerManager implements GameDatabaseObj
     // Achievement data
     private Map<Integer, GameAchievement> achievements;
     
-    @Setter
+    // Flags
     private transient boolean queueSave;
+    private transient boolean hasCompleted;
     
     @Deprecated // Morphia only
     public AchievementManager() {
@@ -79,9 +81,6 @@ public class AchievementManager extends PlayerManager implements GameDatabaseObj
     }
     
     public synchronized void handleClientEvents(Events events) {
-        //
-        boolean hasCompleted = false;
-        
         // Parse events
         for (var event : events.getList()) {
             // Check id
@@ -117,25 +116,25 @@ public class AchievementManager extends PlayerManager implements GameDatabaseObj
             // Update achievement
             boolean changed = achievement.trigger(true, progress, 0, 0);
             
-            // Only save/update on client if achievement was changed
+            // Sync with client if achievement was changed
             if (changed) {
-                // Sync
                 this.syncAchievement(achievement);
-                
-                // Set save flag
-                this.queueSave = true;
-                
-                // Check if achievement was completed
-                if (achievement.isComplete()) {
-                    hasCompleted = true;
-                }
             }
         }
         
-        // Trigger update
-        if (hasCompleted) {
+        // Update total achievements
+        if (this.hasCompleted) {
+            this.hasCompleted = false;
             this.getPlayer().trigger(AchievementCondition.AchievementTotal, this.getCompletedAchievementsCount());
         }
+    }
+    
+    public synchronized void trigger(AchievementCondition condition, int progress) {
+        this.trigger(condition.getValue(), progress, 0, 0);
+    }
+    
+    public synchronized void trigger(AchievementCondition condition, int progress, int param1, int param2) {
+        this.trigger(condition.getValue(), progress, param1, param2);
     }
     
     public synchronized void trigger(int condition, int progress, int param1, int param2) {
@@ -158,8 +157,7 @@ public class AchievementManager extends PlayerManager implements GameDatabaseObj
         
         // Check what type of achievement condition this is
         boolean isTotal = AchievementHelper.isIncrementalAchievement(condition);
-        boolean hasCompleted = false;
-        
+
         // Parse achievements
         for (var data : triggerList) {
             // Get achievement
@@ -168,23 +166,41 @@ public class AchievementManager extends PlayerManager implements GameDatabaseObj
             // Update achievement
             boolean changed = achievement.trigger(isTotal, progress, param1, param2);
 
-            // Only save/update on client if achievement was changed
+            // Sync with client if achievement was changed
             if (changed) {
-                // Sync
                 this.syncAchievement(achievement);
-                
-                // Set save flag
-                this.queueSave = true;
-                
-                // Check if achievement was completed
-                if (achievement.isComplete()) {
-                    hasCompleted = true;
-                }
             }
         }
         
-        // Trigger update
-        if (hasCompleted) {
+        // Update total achievements
+        if (this.hasCompleted) {
+            this.hasCompleted = false;
+            this.getPlayer().trigger(AchievementCondition.AchievementTotal, this.getCompletedAchievementsCount());
+        }
+    }
+    
+    public synchronized void triggerOne(int id, int progress, int param1, int param2) {
+        // Get achievement data
+        var data = GameData.getAchievementDataTable().get(id);
+        if (data == null) return;
+        
+        // Get achievement
+        var achievement = this.getAchievement(data);
+        
+        // Check what type of achievement condition this is
+        boolean isTotal = AchievementHelper.isIncrementalAchievement(data.getCompleteCond());
+        
+        // Update achievement
+        boolean changed = achievement.trigger(isTotal, progress, param1, param2);
+
+        // Sync with client if achievement was changed
+        if (changed) {
+            this.syncAchievement(achievement);
+        }
+        
+        // Update total achievements
+        if (this.hasCompleted) {
+            this.hasCompleted = false;
             this.getPlayer().trigger(AchievementCondition.AchievementTotal, this.getCompletedAchievementsCount());
         }
     }
@@ -197,6 +213,15 @@ public class AchievementManager extends PlayerManager implements GameDatabaseObj
             return;
         }
         
+        // Set save flag
+        this.queueSave = true;
+        
+        // Check if achievement was completed
+        if (achievement.isComplete()) {
+            this.hasCompleted = true;
+        }
+        
+        // Send update to player
         getPlayer().addNextPackage(
             NetMsgId.achievement_change_notify, 
             achievement.toProto()

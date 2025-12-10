@@ -1,4 +1,4 @@
-package emu.nebula.data.resources;
+package emu.nebula.data.custom;
 
 import java.util.List;
 import java.util.Map;
@@ -6,6 +6,7 @@ import java.util.Map;
 import emu.nebula.data.BaseDef;
 import emu.nebula.data.GameData;
 import emu.nebula.data.ResourceType;
+import emu.nebula.data.resources.CharGemAttrValueDef;
 import emu.nebula.util.WeightedList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -97,7 +98,7 @@ public class CharGemAttrGroupDef extends BaseDef {
             this.values = new WeightedList<>();
         }
         
-        protected void addValue(CharGemAttrValueDef value) {
+        public void addValue(CharGemAttrValueDef value) {
             this.values.add(value.getRarity(), value);
         }
         

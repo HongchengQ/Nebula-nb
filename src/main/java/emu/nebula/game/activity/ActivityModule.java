@@ -15,10 +15,20 @@ public class ActivityModule extends GameContextModule {
         this.activities = new IntArrayList();
         
         // Hardcode these activities for now
-        this.activities.add(700102);
-        this.activities.add(700103);
+        // TODO make an activity json file to read activity ids from
+        
+        // Trial activities
         this.activities.add(700104);
         this.activities.add(700107);
+        this.activities.add(700108);
+
+        // Tower defense activity
+        this.activities.add(102001);
+        
+        // 
+        this.activities.add(1010201);
+        this.activities.add(1010203);
+        this.activities.add(1010204);
         
         //this.activities.add(101002);
         //this.activities.add(101003);

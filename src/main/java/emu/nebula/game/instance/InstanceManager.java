@@ -137,5 +137,55 @@ public class InstanceManager extends PlayerManager {
         // Success
         return change.setSuccess(true);
     }
+    
+    public PlayerChangeInfo settleWeekly(InstanceData data, boolean win) {
+        // Calculate settle data
+        var settleData = new InstanceSettleData();
+        
+        settleData.setWin(win);
+        settleData.setFirst(settleData.isWin() && !getProgress().getWeekBossLog().containsKey(data.getId()));
+        
+        // Init player change info
+        var change = new PlayerChangeInfo();
+        
+        // Handle win
+        if (settleData.isWin()) {
+            // Calculate rewards
+            int entries = this.getPlayer().getInventory().getResourceCount(GameConstants.WEEKLY_ENTRY_ITEM_ID);
+            
+            if (entries > 0) {
+                // Generate regular rewards
+                settleData.setRewards(data.getRewards().generate());
+                
+                // Add regular rewards
+                getPlayer().getInventory().addItems(settleData.getRewards(), change);
+                
+                // Remove weekly entry
+                getPlayer().getInventory().removeItem(GameConstants.WEEKLY_ENTRY_ITEM_ID, 1, change);
+            }
+            
+            // Add first clear rewards even if we dont have the entry ticket
+            if (settleData.isFirst()) {
+                // Generate first clear rewards
+                settleData.setRewards(data.getFirstRewards().generate());
+                
+                // Add to inventory
+                getPlayer().getInventory().addItems(settleData.getFirstRewards(), change);
+            }
+            
+            // Log
+            this.getProgress().saveInstanceLog(getProgress().getWeekBossLog(), "weekBossLog", data.getId(), 1);
+            
+            // Quest triggers
+            this.getPlayer().trigger(QuestCondition.WeekBoosClearSpecificDifficultyAndTotal, 1);
+            this.getPlayer().trigger(QuestCondition.BattleTotal, 1);
+        }
+        
+        // Set extra data
+        change.setExtraData(settleData);
+        
+        // Success
+        return change.setSuccess(true);
+    }
 
 }

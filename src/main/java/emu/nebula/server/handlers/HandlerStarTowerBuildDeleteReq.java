@@ -26,6 +26,7 @@ public class HandlerStarTowerBuildDeleteReq extends NetHandler {
         
         // Build response
         var rsp = StarTowerBuildDeleteResp.newInstance()
+                .setTicket(session.getPlayer().getProgress().getTowerTickets())
                 .setChange(change.toProto());
                 
         // Encode packet

@@ -10,6 +10,9 @@ import emu.nebula.data.GameData;
 import emu.nebula.data.resources.SecondarySkillDef;
 import emu.nebula.data.resources.StarTowerDef;
 import emu.nebula.data.resources.StarTowerStageDef;
+import emu.nebula.game.achievement.AchievementCondition;
+import emu.nebula.game.achievement.AchievementManager;
+import emu.nebula.game.character.ElementType;
 import emu.nebula.game.character.GameCharacter;
 import emu.nebula.game.character.GameDisc;
 import emu.nebula.game.formation.Formation;
@@ -21,6 +24,7 @@ import emu.nebula.game.tower.cases.StarTowerDoorCase;
 import emu.nebula.game.tower.cases.StarTowerHawkerCase;
 import emu.nebula.game.tower.cases.StarTowerNpcRecoveryHPCase;
 import emu.nebula.game.tower.cases.StarTowerPotentialCase;
+import emu.nebula.game.tower.cases.StarTowerSelectSpecialPotentialCase;
 import emu.nebula.game.tower.cases.StarTowerStrengthenMachineCase;
 import emu.nebula.game.tower.room.RoomType;
 import emu.nebula.game.tower.room.StarTowerBaseRoom;
@@ -71,7 +75,8 @@ public class StarTowerGame {
     private int[] discIds;
     
     private int pendingPotentialCases = 0;
-    private int pendingSubNotes = 0;
+    private int pendingRarePotentialCases = 0;
+    private boolean completed;
     
     // Bag
     private ItemParamMap items;
@@ -85,9 +90,10 @@ public class StarTowerGame {
     // Modifiers
     private StarTowerModifiers modifiers;
     
-    // Cached build
+    // Cached info
     private transient StarTowerBuild build;
     private transient ItemParamMap newInfos;
+    private transient ItemParamMap rarePotentialCount;
     
     @Deprecated // Morphia only
     public StarTowerGame() {
@@ -101,10 +107,6 @@ public class StarTowerGame {
         
         // Set tower id
         this.id = req.getId();
-        
-        // Setup room
-        this.enterNextRoom();
-        this.getRoom().setMapInfo(req);
         
         // Setup team
         this.formationId = req.getFormationId();
@@ -173,20 +175,28 @@ public class StarTowerGame {
         this.charIds = charList.toIntArray();
         this.discIds = discList.toIntArray();
         
+        // Temp data to cache for rare potential count
+        this.rarePotentialCount = new ItemParamMap();
+        
         // Finish setting up droppable sub note skills
         for (int id : GameConstants.TOWER_COMMON_SUB_NOTE_SKILLS) {
             this.subNoteDropList.add(id);
         }
         
-        // Add starting coin directly
-        int coin = this.getModifiers().getStartingCoin();
-        if (coin > 0) {
-            this.getRes().add(GameConstants.TOWER_COIN_ITEM_ID, coin);
-        }
+        // Enter first room
+        this.enterNextRoom();
+        this.getRoom().setMapInfo(req);
+        
+        // Add starting items
+        this.getModifiers().addStartingItems();
     }
     
     public Player getPlayer() {
         return this.manager.getPlayer();
+    }
+    
+    public AchievementManager getAchievementManager() {
+        return this.getPlayer().getAchievementManager();
     }
     
     public StarTowerBuild getBuild() {
@@ -199,6 +209,35 @@ public class StarTowerGame {
     
     public int getDifficulty() {
         return this.getData().getDifficulty();
+    }
+    
+    public int getRarePotentialCount(int charId) {
+        return this.getRarePotentialCount().get(charId);
+    }
+    
+    /**
+     * Gets the team element, if the team has 2+ or more elements, then returns null
+     */
+    public ElementType getTeamElement() {
+        ElementType type = null;
+        
+        for (int id : this.getCharIds()) {
+            var character = this.getPlayer().getCharacters().getCharacterById(id);
+            if (character == null) {
+                return null;
+            }
+            
+            if (type == null) {
+                type = character.getData().getElementType();
+                continue;
+            }
+            
+            if (type != character.getData().getElementType()) {
+                return null;
+            }
+        }
+        
+        return type;
     }
     
     public GameCharacter getCharByIndex(int index) {
@@ -267,17 +306,25 @@ public class StarTowerGame {
         }
         
         // Create room
-        int roomType = stage.getRoomType();
+        var roomType = stage.getRoomType();
         
-        if (roomType <= RoomType.FinalBossRoom.getValue()) {
+        if (roomType.getValue() <= RoomType.FinalBossRoom.getValue()) {
             this.room = new StarTowerBattleRoom(this, stage);
-        } else if (roomType == RoomType.EventRoom.getValue()) {
+        } else if (roomType == RoomType.EventRoom) {
             this.room = new StarTowerEventRoom(this, stage);
-        } else if (roomType == RoomType.ShopRoom.getValue()) {
+        } else if (roomType == RoomType.ShopRoom) {
             this.room = new StarTowerHawkerRoom(this, stage);
         } else {
             this.room = new StarTowerBaseRoom(this, stage);
         }
+        
+        // Trigger achievement
+        this.getAchievementManager().trigger(
+            AchievementCondition.TowerEnterRoom,
+            1,
+            stage.getRoomType().getValue() + 1,
+            0
+        );
         
         // Create cases for the room
         this.room.onEnter();
@@ -386,6 +433,11 @@ public class StarTowerGame {
                 // Add potential
                 this.getPotentials().put(id, nextLevel);
                 
+                // Add to rare potential count
+                if (potentialData.isRare()) {
+                    this.getRarePotentialCount().add(potentialData.getCharId(), 1);
+                }
+                
                 // Add to change info
                 var info = PotentialInfo.newInstance()
                         .setTid(id)
@@ -411,6 +463,11 @@ public class StarTowerGame {
                 
                 // Add to new infos
                 this.getNewInfos().add(id, count);
+                
+                // Achievment
+                if (count > 0) {
+                    this.getAchievementManager().trigger(AchievementCondition.TowerItemsGet, count, id, 0);
+                }
             }
             case Res -> {
                 // Sanity check to make sure we dont remove more than what we have
@@ -427,6 +484,11 @@ public class StarTowerGame {
                         .setQty(count);
                 
                 change.add(info);
+                
+                // Achievment
+                if (count > 0) {
+                    this.getAchievementManager().trigger(AchievementCondition.TowerItemsGet, count, id, 0);
+                }
             }
             default -> {
                 // Ignored
@@ -443,7 +505,13 @@ public class StarTowerGame {
      * Adds random potential selector cases for the client
      */
     public void addPotentialSelectors(int amount) {
+        if (amount <= 0) return;
         this.pendingPotentialCases += amount;
+    }
+    
+    public void addRarePotentialSelectors(int amount) {
+        if (amount <= 0) return;
+        this.pendingRarePotentialCases += amount;
     }
     
     /**
@@ -451,6 +519,20 @@ public class StarTowerGame {
      * If there are none, then create the door case so the player can exit
      */
     public List<StarTowerBaseCase> handlePendingPotentialSelectors() {
+        // Create rare potential selectors if any characters can recieve a rare potential
+        if (this.pendingRarePotentialCases > 0) {
+            this.pendingRarePotentialCases--;
+            
+            // Create a rare selector, if no selector can be created, then create a regular one instead
+            var selector = this.createRarePotentialSelector();
+            
+            if (selector != null) {
+                return List.of(selector);
+            } else {
+                this.pendingPotentialCases += 1;
+            }
+        }
+        
         // Create potential selectors if any are avaliable
         if (this.pendingPotentialCases > 0) {
             this.pendingPotentialCases--;
@@ -470,7 +552,7 @@ public class StarTowerGame {
         cases.add(this.createExit());
         
         // Create shop npc if this is the last room
-        if (this.isOnFinalFloor()) {
+        if (this.getRoom().getType() == RoomType.FinalBossRoom) {
             // Create hawker case (shop)
             cases.add(new StarTowerHawkerCase());
             // Create strengthen machine
@@ -478,8 +560,13 @@ public class StarTowerGame {
                 cases.add(new StarTowerStrengthenMachineCase());
             }
         } else if (this.getRoom() instanceof StarTowerBattleRoom) {
-            // Create recovery npc
-            cases.add(new StarTowerNpcRecoveryHPCase());
+            if (this.getRoom().getType() == RoomType.BattleRoom && Utils.randomChance(this.getModifiers().getBattleNpcEventChance())) {
+                // Create npc event
+                cases.add(this.getRoom().createNpcEvent());
+            } else {
+                // Create recovery npc
+                cases.add(new StarTowerNpcRecoveryHPCase());
+            }
         }
         
         // Complete
@@ -489,21 +576,26 @@ public class StarTowerGame {
     /**
      * Creates a potential selector for a random character
      */
-    public StarTowerBaseCase createPotentialSelector() {
+    public StarTowerPotentialCase createPotentialSelector() {
         return this.createPotentialSelector(0);
     }
     
-    public StarTowerBaseCase createPotentialSelector(int charId) {
+    public StarTowerPotentialCase createPotentialSelector(int charId) {
         return this.createPotentialSelector(charId, false);
     }
     
     /**
      * Creates a potential selector for the specified character
      */
-    public StarTowerBaseCase createPotentialSelector(int charId, boolean rareOnly) {
+    public StarTowerPotentialCase createPotentialSelector(int charId, boolean rare) {
         // Check character id
         if (charId <= 0) {
             charId = this.getRandomCharId();
+        }
+        
+        // Make sure character can't have more than 2 rare potentials
+        if (rare && this.getRarePotentialCount(charId) >= 2) {
+            return null;
         }
         
         // Get character potentials
@@ -519,20 +611,20 @@ public class StarTowerGame {
         boolean isMainCharacter = this.getCharIds()[0] == charId;
         
         if (isMainCharacter) {
-            list.addElements(0, data.getMasterSpecificPotentialIds());
-            
-            if (!rareOnly) {
+            if (rare) {
+                list.addElements(0, data.getMasterSpecificPotentialIds());
+            } else {
                 list.addElements(0, data.getMasterNormalPotentialIds());
             }
         } else {
-            list.addElements(0, data.getAssistSpecificPotentialIds());
-            
-            if (!rareOnly) {
+            if (rare) {
+                list.addElements(0, data.getAssistSpecificPotentialIds());
+            } else {
                 list.addElements(0, data.getAssistNormalPotentialIds());
             }
         }
         
-        if (!rareOnly) {
+        if (!rare) {
             list.addElements(0, data.getCommonPotentialIds()); 
         }
         
@@ -595,10 +687,45 @@ public class StarTowerGame {
         }
         
         // Creator potential selector case
-        return new StarTowerPotentialCase(this.getTeamLevel(), selector);
+        if (rare) {
+            return new StarTowerSelectSpecialPotentialCase(this, charId, selector);
+        } else {
+            return new StarTowerPotentialCase(this, charId, selector);
+        }
     }
     
-    public StarTowerBaseCase createStrengthenSelector() {
+    public int getRandomCharIdForRarePotential() {
+        // Create list of avaliable characters
+        IntList list = new IntArrayList();
+        
+        for (int id : this.getCharIds()) {
+            int rareCount = this.getRarePotentialCount().get(id);
+            if (rareCount < 2) {
+                list.add(id);
+            }
+        }
+        
+        // Sanity check
+        if (list.isEmpty()) {
+            return 0;
+        }
+        
+        return Utils.randomElement(list);
+    }
+    
+    /**
+     * Creates a random rare potential selector
+     */
+    public StarTowerPotentialCase createRarePotentialSelector() {
+        // Get random character from list
+        int charId = this.getRandomCharIdForRarePotential();
+        if (charId == 0) return null;
+        
+        // Create rare selector
+        return this.createPotentialSelector(charId, true);
+    }
+    
+    public StarTowerPotentialCase createStrengthenSelector() {
         // Random potentials list
         var potentials = new IntArrayList();
         
@@ -649,11 +776,7 @@ public class StarTowerGame {
         }
         
         // Creator potential selector case
-        return new StarTowerPotentialCase(this.getTeamLevel(), selector);
-    }
-    
-    public void setPendingSubNotes(int amount) {
-        this.pendingSubNotes = amount;
+        return new StarTowerPotentialCase(this, true, selector);
     }
     
     public int getRandomSubNoteId() {
@@ -661,11 +784,10 @@ public class StarTowerGame {
     }
     
     private PlayerChangeInfo addRandomSubNoteSkills(PlayerChangeInfo change) {
-        int id = this.getRandomSubNoteId();
-        int count = Utils.randomRange(1, 3);
+        // Add sub note with random id
+        this.addItem(this.getRandomSubNoteId(), 3, change);
         
-        this.addItem(id, count, change);
-        
+        // Complete
         return change;
     }
     
@@ -721,32 +843,7 @@ public class StarTowerGame {
             }
             
             // Refresh secondary skills
-            var newSecondarySkills = SecondarySkillDef.calculateSecondarySkills(this.getDiscIds(), this.getItems());
-            
-            // Add any new secondary skills to the data proto
-            for (int id : newSecondarySkills) {
-                if (!this.getSecondarySkills().contains(id)) {
-                    var info = ActiveSecondaryChange.newInstance()
-                            .setSecondaryId(id)
-                            .setActive(true);
-                    
-                    data.addSecondaries(info);
-                }
-            }
-            
-            // Inform the client that these skills are no longer active
-            for (int id : this.getSecondarySkills()) {
-                if (!newSecondarySkills.contains(id)) {
-                    var info = ActiveSecondaryChange.newInstance()
-                            .setSecondaryId(id)
-                            .setActive(false);
-                    
-                    data.addSecondaries(info);
-                }
-            }
-            
-            // Set new secondary skills
-            this.secondarySkills = newSecondarySkills;
+            this.refreshSecondarySkills(data);
             
             // Clear new infos
             this.getNewInfos().clear();
@@ -759,25 +856,91 @@ public class StarTowerGame {
         return rsp;
     }
     
-    public StarTowerInteractResp settle(StarTowerInteractResp rsp, boolean isWin) {
+    public StarTowerInteractResp settle(StarTowerInteractResp rsp, boolean victory) {
+        // Set completed flag
+        this.completed = true;
+        
         // End game
-        this.getManager().endGame(isWin);
+        this.getManager().settleGame(victory);
         
         // Settle info
         var settle = rsp.getMutableSettle()
                 .setTotalTime(this.getBattleTime())
                 .setBuild(this.getBuild().toProto());
         
-        // Mark change info
+        // Set empty change info
         settle.getMutableChange();
         
-        // Log victory
-        if (isWin) {
-            this.getManager().getPlayer().getProgress().addStarTowerLog(this.getId());
+        // Calculate rewards
+        if (victory) {
+            // Init rewards
+            var rewards = new ItemParamMap();
+            
+            // Add journey tickets
+            int tickets = this.getModifiers().calculateTickets();
+            rewards.add(12, tickets);
+            
+            // (Custom) Add research materials since tower quests are not implemented yet
+            int research = 50 + (Utils.randomRange(this.getDifficulty() - 1, this.getDifficulty() * 2) * 10);
+            rewards.add(51, research);
+            
+            // Add to inventory
+            var change = this.getPlayer().getInventory().addItem(51, research);
+            
+            // Set proto data
+            settle.setChange(change.toProto());
+            rewards.toItemTemplateStream().forEach(settle::addTowerRewards);
+            
+            // Save tower tickets
+            this.getPlayer().getProgress().addWeeklyTowerTicketLog(tickets);
         }
         
         // Complete
         return rsp;
+    }
+    
+    // Etc
+    
+    private void refreshSecondarySkills(TowerChangeData data) {
+        // Init
+        var newSecondarySkills = SecondarySkillDef.calculateSecondarySkills(this.getDiscIds(), this.getItems());
+        int newSecondaryCount = 0;
+        
+        // Add any new secondary skills to the data proto
+        for (int id : newSecondarySkills) {
+            if (!this.getSecondarySkills().contains(id)) {
+                var info = ActiveSecondaryChange.newInstance()
+                        .setSecondaryId(id)
+                        .setActive(true);
+                
+                data.addSecondaries(info);
+                
+                // Counter
+                newSecondaryCount++;
+            }
+        }
+        
+        // Inform the client that these skills are no longer active
+        for (int id : this.getSecondarySkills()) {
+            if (!newSecondarySkills.contains(id)) {
+                var info = ActiveSecondaryChange.newInstance()
+                        .setSecondaryId(id)
+                        .setActive(false);
+                
+                data.addSecondaries(info);
+            }
+        }
+        
+        // Set new secondary skills
+        this.secondarySkills = newSecondarySkills;
+        
+        // Achievement trigger
+        if (newSecondaryCount > 0) {
+            this.getAchievementManager().trigger(
+                AchievementCondition.TowerSpecificSecondarySkillActivateTotal,
+                newSecondaryCount
+            );
+        }
     }
     
     // Proto

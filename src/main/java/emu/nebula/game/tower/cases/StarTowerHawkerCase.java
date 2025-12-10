@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import emu.nebula.GameConstants;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.game.player.PlayerChangeInfo;
 import emu.nebula.game.tower.StarTowerShopGoods;
 import emu.nebula.proto.PublicStarTower.HawkerCaseData;
@@ -41,8 +42,8 @@ public class StarTowerHawkerCase extends StarTowerBaseCase {
         // Caclulate amount of potentials/sub notes to sell
         int total = getModifiers().getShopGoodsCount();
         
-        int minPotentials = Math.max(total / 2, 2);
-        int maxPotentials = Math.max(total - 1, minPotentials);
+        int minPotentials = Math.max(total / 2, 2);             // At least half of the shop goods should be potential drinks
+        int maxPotentials = Math.max(total - 1, minPotentials); // Make sure we have at least melodic note goods IF we have more than 2 shop goods
         int potentials = Utils.randomRange(minPotentials, maxPotentials);
         
         int subNotes = total - potentials;
@@ -169,6 +170,9 @@ public class StarTowerHawkerCase extends StarTowerBaseCase {
         
         // Set change info
         rsp.setChange(change.toProto());
+        
+        // Achievement
+        this.getGame().getAchievementManager().trigger(AchievementCondition.TowerSpecificShopReRollTotal, 1);
     }
     
     private void buy(int sid, StarTowerInteractResp rsp) {
@@ -204,6 +208,13 @@ public class StarTowerHawkerCase extends StarTowerBaseCase {
         
         // Remove coins
         this.getGame().addItem(GameConstants.TOWER_COIN_ITEM_ID, -price, change);
+        
+        // Achievements
+        this.getGame().getAchievementManager().trigger(AchievementCondition.TowerSpecificDifficultyShopBuyTimes, 1);
+        
+        if (goods.hasDiscount()) {
+            this.getGame().getAchievementManager().trigger(AchievementCondition.TowerSpecificShopBuyDiscountTotal, 1);
+        }
         
         // Set change info
         rsp.setChange(change.toProto());

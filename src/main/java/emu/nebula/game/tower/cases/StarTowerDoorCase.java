@@ -16,7 +16,7 @@ public class StarTowerDoorCase extends StarTowerBaseCase {
         this.floorNum = floor;
         
         if (data != null) {
-            this.roomType = data.getRoomType();
+            this.roomType = data.getRoomType().getValue();
         }
     }
 

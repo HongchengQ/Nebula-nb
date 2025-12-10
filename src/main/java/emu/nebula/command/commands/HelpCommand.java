@@ -5,7 +5,7 @@ import emu.nebula.command.Command;
 import emu.nebula.command.CommandArgs;
 import emu.nebula.command.CommandHandler;
 
-@Command(label = "help", permission = "player.help", desc = "/help. Displays a list of available commands.")
+@Command(label = "help", permission = "player.help", desc = "!help = Displays a list of available commands. (Very spammy in-game)")
 public class HelpCommand implements CommandHandler {
 
     @Override

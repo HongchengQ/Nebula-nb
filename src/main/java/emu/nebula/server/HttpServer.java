@@ -1,14 +1,7 @@
 package emu.nebula.server;
 
-import java.io.File;
-import java.io.FileReader;
-
-import org.eclipse.jetty.server.HttpConfiguration;
-import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.SecureRequestCustomizer;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
-
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import emu.nebula.Config.HttpServerConfig;
 import emu.nebula.GameConstants;
 import emu.nebula.Nebula;
@@ -21,6 +14,15 @@ import io.javalin.http.ContentType;
 import io.javalin.http.Context;
 import io.javalin.http.staticfiles.Location;
 import lombok.Getter;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.FileReader;
 
 @Getter
 public class HttpServer {
@@ -38,6 +40,11 @@ public class HttpServer {
             var staticFilesDir = new File(Nebula.getConfig().getWebFilesDir());
             if (staticFilesDir.exists()) {
                 javalinConfig.staticFiles.add(staticFilesDir.getPath(), Location.EXTERNAL);
+            }
+
+            if (Nebula.getConfig().getLogOptions().httpDebug) {
+                javalinConfig.plugins.enableDevLogging();
+                ((Logger) LoggerFactory.getLogger("io.javalin")).setLevel(Level.DEBUG);
             }
         });
 
@@ -162,15 +169,24 @@ public class HttpServer {
 
         getApp().post("/user/detail", new UserLoginHandler());
         getApp().post("/user/set", new UserSetDataHandler());
+        getApp().post("/user/set-info", new UserSetDataHandler()); // CN
         getApp().post("/user/login", new UserLoginHandler());
         getApp().post("/user/quick-login", new UserLoginHandler());
+        getApp().post("/user/send-sms", new HttpJsonResponse("{\"Code\":200,\"Data\":{},\"Msg\":\"OK\"}"));
 
         getApp().post("/yostar/get-auth", new GetAuthHandler());
         getApp().post("/yostar/send-code", new HttpJsonResponse("{\"Code\":200,\"Data\":{},\"Msg\":\"OK\"}")); // Dummy handler
 
         // https://nova-static.stellasora.global/
         getApp().get("/meta/serverlist.html", new MetaServerlistHandler(this));
-        getApp().get("/meta/*.html", new MetaPatchListHandler(this));
+
+        /*
+           fishiatee: Maybe this should be handled better.
+
+           For example, if raw meta is detected in say ./web/meta, serve that instead.
+           Otherwise, detect and serve from custom patchlist definition.
+        */
+        //getApp().get("/meta/*.html", new MetaPatchListHandler(this));
     }
 
     private void addGameServerRoutes() {

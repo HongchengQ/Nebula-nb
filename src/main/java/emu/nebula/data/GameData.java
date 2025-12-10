@@ -11,14 +11,14 @@ import java.util.stream.Collectors;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-
+import emu.nebula.data.custom.CharGemAttrGroupDef;
 import emu.nebula.data.resources.*;
 
 import lombok.Getter;
 
 @SuppressWarnings("unused")
 public class GameData {
-    // Characters
+    // ===== Characters =====
     @Getter private static DataTable<CharacterDef> CharacterDataTable = new DataTable<>();
     @Getter private static DataTable<CharacterAdvanceDef> CharacterAdvanceDataTable = new DataTable<>();
     @Getter private static DataTable<CharacterSkillUpgradeDef> CharacterSkillUpgradeDataTable = new DataTable<>();
@@ -28,40 +28,43 @@ public class GameData {
     @Getter private static DataTable<TalentGroupDef> TalentGroupDataTable = new DataTable<>();
     @Getter private static DataTable<TalentDef> TalentDataTable = new DataTable<>();
     
-    // Character emblems
+    // Characters: Emblems
     @Getter private static DataTable<CharGemDef> CharGemDataTable = new DataTable<>();
     @Getter private static DataTable<CharGemSlotControlDef> CharGemSlotControlDataTable = new DataTable<>();
     @Getter private static DataTable<CharGemAttrGroupDef> CharGemAttrGroupDataTable = new DataTable<>();
     @Getter private static DataTable<CharGemAttrValueDef> CharGemAttrValueDataTable = new DataTable<>();
     
-    // Character affinity
+    // Characters: Affinity
     @Getter private static DataTable<AffinityLevelDef> AffinityLevelDataTable = new DataTable<>();
     @Getter private static DataTable<AffinityGiftDef> AffinityGiftDataTable = new DataTable<>();
     @Getter private static DataTable<PlotDef> PlotDataTable = new DataTable<>();
     
+    // Characters: Phone
     @Getter private static DataTable<ChatDef> ChatDataTable = new DataTable<>();
     
+    // Characters: Dating
     @Getter private static DataTable<DatingLandmarkDef> DatingLandmarkDataTable = new DataTable<>();
     @Getter private static DataTable<DatingLandmarkEventDef> DatingLandmarkEventDataTable = new DataTable<>();
     @Getter private static DataTable<DatingCharacterEventDef> DatingCharacterEventDataTable = new DataTable<>();
     
-    // Discs
+    // ===== Discs =====
     @Getter private static DataTable<DiscDef> DiscDataTable = new DataTable<>();
     @Getter private static DataTable<DiscStrengthenDef> DiscStrengthenDataTable = new DataTable<>();
     @Getter private static DataTable<DiscItemExpDef> DiscItemExpDataTable = new DataTable<>();
     @Getter private static DataTable<DiscPromoteDef> DiscPromoteDataTable = new DataTable<>();
     @Getter private static DataTable<DiscPromoteLimitDef> DiscPromoteLimitDataTable = new DataTable<>();
     
+    // Discs: Melody items
     @Getter private static DataTable<SecondarySkillDef> SecondarySkillDataTable = new DataTable<>();
     
-    // Items
+    // ===== Items =====
     @Getter private static DataTable<ItemDef> ItemDataTable = new DataTable<>();
     @Getter private static DataTable<ProductionDef> ProductionDataTable = new DataTable<>();
     @Getter private static DataTable<PlayerHeadDef> PlayerHeadDataTable = new DataTable<>();
     @Getter private static DataTable<TitleDef> titleDataTable = new DataTable<>();
     @Getter private static DataTable<HonorDef> honorDataTable = new DataTable<>();
     
-    // Shops
+    // ===== Shops =====
     @Getter private static DataTable<MallMonthlyCardDef> MallMonthlyCardDataTable = new DataTable<>();
     @Getter private static DataTable<MallPackageDef> MallPackageDataTable = new DataTable<>();
     @Getter private static DataTable<MallShopDef> MallShopDataTable = new DataTable<>();
@@ -70,20 +73,38 @@ public class GameData {
     @Getter private static DataTable<ResidentShopDef> ResidentShopDataTable = new DataTable<>();
     @Getter private static DataTable<ResidentGoodsDef> ResidentGoodsDataTable = new DataTable<>();
     
-    // Battle Pass
+    // ===== Battle Pass =====
     @Getter private static DataTable<BattlePassDef> BattlePassDataTable = new DataTable<>();
     @Getter private static DataTable<BattlePassLevelDef> BattlePassLevelDataTable = new DataTable<>();
     @Getter private static DataTable<BattlePassQuestDef> BattlePassQuestDataTable = new DataTable<>();
     @Getter private static DataTable<BattlePassRewardDef> BattlePassRewardDataTable = new DataTable<>();
     
-    // Commissions
+    // ===== Commissions =====
     @Getter private static DataTable<AgentDef> AgentDataTable = new DataTable<>();
     
-    // Dictionary
+    // ===== Dictionary =====
     @Getter private static DataTable<DictionaryTabDef> DictionaryTabDataTable = new DataTable<>();
     @Getter private static DataTable<DictionaryEntryDef> DictionaryEntryDataTable = new DataTable<>();
     
-    // Instances
+    // ===== Gacha =====
+    @Getter private static DataTable<GachaDef> GachaDataTable = new DataTable<>();
+    @Getter private static DataTable<GachaStorageDef> GachaStorageDataTable = new DataTable<>();
+    
+    // ===== Story =====
+    @Getter private static DataTable<StoryDef> StoryDataTable = new DataTable<>();
+    @Getter private static DataTable<StorySetSectionDef> StorySetSectionDataTable = new DataTable<>();
+    
+    // ===== Daily Quests =====
+    @Getter private static DataTable<DailyQuestDef> DailyQuestDataTable = new DataTable<>();
+    @Getter private static DataTable<DailyQuestActiveDef> DailyQuestActiveDataTable = new DataTable<>();
+    
+    // ===== Achievements =====
+    @Getter private static DataTable<AchievementDef> AchievementDataTable = new DataTable<>();
+    
+    // ===== Tutorials =====
+    @Getter private static DataTable<TutorialLevelDef> TutorialLevelDataTable = new DataTable<>();
+    
+    // ===== Instances =====
     @Getter private static DataTable<DailyInstanceDef> DailyInstanceDataTable = new DataTable<>();
     @Getter private static DataTable<DailyInstanceRewardGroupDef> DailyInstanceRewardGroupDataTable = new DataTable<>();
     @Getter private static DataTable<RegionBossLevelDef> RegionBossLevelDataTable = new DataTable<>();
@@ -91,26 +112,7 @@ public class GameData {
     @Getter private static DataTable<CharGemInstanceDef> CharGemInstanceDataTable = new DataTable<>();
     @Getter private static DataTable<WeekBossLevelDef> WeekBossLevelDataTable = new DataTable<>();
     
-    @Getter private static DataTable<GachaDef> GachaDataTable = new DataTable<>();
-    @Getter private static DataTable<GachaStorageDef> GachaStorageDataTable = new DataTable<>();
-    
-    @Getter private static DataTable<WorldClassDef> WorldClassDataTable = new DataTable<>();
-    @Getter private static DataTable<GuideGroupDef> GuideGroupDataTable = new DataTable<>();
-    @Getter private static DataTable<HandbookDef> HandbookDataTable = new DataTable<>();
-    @Getter private static DataTable<StoryDef> StoryDataTable = new DataTable<>();
-    @Getter private static DataTable<StorySetSectionDef> StorySetSectionDataTable = new DataTable<>();
-    
-    // Daily quests
-    @Getter private static DataTable<DailyQuestDef> DailyQuestDataTable = new DataTable<>();
-    @Getter private static DataTable<DailyQuestActiveDef> DailyQuestActiveDataTable = new DataTable<>();
-    
-    // Achievements
-    @Getter private static DataTable<AchievementDef> AchievementDataTable = new DataTable<>();
-    
-    // Tutorial
-    @Getter private static DataTable<TutorialLevelDef> TutorialLevelDataTable = new DataTable<>();
-    
-    // Star tower
+    // ===== Star Tower =====
     @Getter private static DataTable<StarTowerDef> StarTowerDataTable = new DataTable<>();
     @Getter private static DataTable<StarTowerStageDef> StarTowerStageDataTable = new DataTable<>();
     @Getter private static DataTable<StarTowerGrowthNodeDef> StarTowerGrowthNodeDataTable = new DataTable<>();
@@ -126,20 +128,43 @@ public class GameData {
     @Getter private static DataTable<StarTowerBookFateCardQuestDef> StarTowerBookFateCardQuestDataTable = new DataTable<>();
     @Getter private static DataTable<StarTowerBookFateCardDef> StarTowerBookFateCardDataTable = new DataTable<>();
     @Getter private static DataTable<FateCardDef> FateCardDataTable = new DataTable<>();
-    
-    // Infinity Tower
+
+    // ===== Infinity Tower =====
     @Getter private static DataTable<InfinityTowerLevelDef> InfinityTowerLevelDataTable = new DataTable<>();
     
-    // Vampire survivor
+    // ===== Vampire Survivor =====
     @Getter private static DataTable<VampireSurvivorDef> VampireSurvivorDataTable = new DataTable<>();
     @Getter private static DataTable<VampireTalentDef> VampireTalentDataTable = new DataTable<>();
     
-    // Score boss
+    // ===== Score Boss =====
     @Getter private static DataTable<ScoreBossControlDef> ScoreBossControlDataTable = new DataTable<>();
+    @Getter private static DataTable<ScoreBossRewardDef> ScoreBossRewardDataTable = new DataTable<>();
     
-    // Activity
+    // ===== Misc =====
+    @Getter private static DataTable<WorldClassDef> WorldClassDataTable = new DataTable<>();
+    @Getter private static DataTable<GuideGroupDef> GuideGroupDataTable = new DataTable<>();
+    @Getter private static DataTable<HandbookDef> HandbookDataTable = new DataTable<>();
+    @Getter private static DataTable<SignInDef> SignInDataTable = new DataTable<>();
+    
+    // ===== Activity =====
     @Getter private static DataTable<ActivityDef> ActivityDataTable = new DataTable<>();
+
+    // Activity: Tower Defense
+    @Getter private static DataTable<TowerDefenseLevelDef> TowerDefenseLevelDataTable = new DataTable<>();
     
+    // Activity: Trials
     @Getter private static DataTable<TrialControlDef> TrialControlDataTable = new DataTable<>();
     @Getter private static DataTable<TrialGroupDef> TrialGroupDataTable = new DataTable<>();
+    
+    // Activity: Levels
+    @Getter private static DataTable<ActivityLevelsLevelDef> ActivityLevelsLevelDataTable = new DataTable<>();
+    
+    // Activity: Task
+    @Getter private static DataTable<ActivityTaskDef> ActivityTaskDataTable = new DataTable<>();
+    @Getter private static DataTable<ActivityTaskGroupDef> ActivityTaskGroupDataTable = new DataTable<>();
+    
+    // Activity: Shop
+    @Getter private static DataTable<ActivityShopDef> ActivityShopDataTable = new DataTable<>();
+    @Getter private static DataTable<ActivityShopControlDef> ActivityShopControlDataTable = new DataTable<>();
+    @Getter private static DataTable<ActivityGoodsDef> ActivityGoodsDataTable = new DataTable<>();
 }

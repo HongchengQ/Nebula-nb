@@ -34,6 +34,7 @@ public class PlayerProgress extends PlayerManager implements GameDatabaseObject 
     // Star Tower
     private IntSet starTowerLog;
     private int[] starTowerGrowth;
+    private int towerTickets;
     
     // Instances
     private Int2IntMap dailyInstanceLog;
@@ -120,6 +121,39 @@ public class PlayerProgress extends PlayerManager implements GameDatabaseObject 
         
         // Success
         return true;
+    }
+    
+    /**
+     * Returns the maximum amount of weekly tickets that a player can receive without hitting the limit
+     */
+    public int getMaxEarnableWeeklyTowerTickets() {
+        return Math.max(this.getWeeklyTowerTicketLimit() - this.getTowerTickets(), 0);
+    }
+    
+    public int getWeeklyTowerTicketLimit() {
+        int limit = 2000;
+        
+        if (this.getPlayer().getStarTowerManager().hasGrowthNode(10502)) {
+            limit += 1000;
+        } else if (this.getPlayer().getStarTowerManager().hasGrowthNode(10201)) {
+            limit += 500;
+        }
+        
+        return limit;
+    }
+
+    public void addWeeklyTowerTicketLog(int count) {
+        this.towerTickets += count;
+        Nebula.getGameDatabase().update(this, this.getUid(), "towerTickets", this.towerTickets);
+    }
+    
+    public void clearWeeklyTowerTicketLog() {
+        if (this.towerTickets == 0) {
+            return;
+        }
+        
+        this.towerTickets = 0;
+        Nebula.getGameDatabase().update(this, this.getUid(), "towerTickets", this.towerTickets);
     }
     
     public void addInfinityArenaLog(int levelId) {

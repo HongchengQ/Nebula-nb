@@ -21,6 +21,10 @@ public class PotentialDef extends BaseDef {
     public int getId() {
         return Id;
     }
+
+    public boolean isRare() {
+        return this.BranchType != 3;
+    }
     
     public int getMaxLevel() {
         // Check if regular potential

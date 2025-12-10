@@ -28,7 +28,7 @@ public class HandlerCharGemInstanceSettleReq extends NetHandler {
         var req = CharGemInstanceSettleReq.parseFrom(message);
         
         // Settle instance
-        var changes = player.getInstanceManager().settleInstance(
+        var change = player.getInstanceManager().settleInstance(
                 data,
                 QuestCondition.CharGemInstanceClearTotal,
                 player.getProgress().getCharGemLog(),
@@ -36,7 +36,7 @@ public class HandlerCharGemInstanceSettleReq extends NetHandler {
                 req.getStar()
         );
         
-        var settleData = (InstanceSettleData) changes.getExtraData();
+        var settleData = (InstanceSettleData) change.getExtraData();
         
         // Handle client events for achievements
         session.getPlayer().getAchievementManager().handleClientEvents(req.getEvents());
@@ -45,7 +45,7 @@ public class HandlerCharGemInstanceSettleReq extends NetHandler {
         var rsp = CharGemInstanceSettleResp.newInstance()
                 .setExp(settleData.getExp())
                 .setThreeStar(req.getStar() == 7)
-                .setChange(changes.toProto());
+                .setChange(change.toProto());
         
         // Add reward items
         if (settleData.getRewards() != null) {

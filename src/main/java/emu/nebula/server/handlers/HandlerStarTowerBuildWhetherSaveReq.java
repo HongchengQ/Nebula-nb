@@ -28,6 +28,7 @@ public class HandlerStarTowerBuildWhetherSaveReq extends NetHandler {
         
         // Build response
         var rsp = StarTowerBuildWhetherSaveResp.newInstance()
+                .setTicket(session.getPlayer().getProgress().getTowerTickets())
                 .setChange(change.toProto());
         
         return session.encodeMsg(NetMsgId.star_tower_build_whether_save_succeed_ack, rsp);
