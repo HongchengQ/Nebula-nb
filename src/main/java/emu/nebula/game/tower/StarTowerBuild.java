@@ -76,13 +76,6 @@ public class StarTowerBuild implements GameDatabaseObject {
             
             // Add to potential map
             this.getPotentials().put(id, level);
-            
-            // Add to character
-            var potentialData = GameData.getPotentialDataTable().get(id);
-            if (potentialData != null) {
-                int charId = potentialData.getCharId();
-                this.getCharPots().add(charId, level);
-            }
         }
         
         // Add sub note skills
@@ -131,15 +124,20 @@ public class StarTowerBuild implements GameDatabaseObject {
     // Score
     
     public int calculateScore() {
-        // Clear score
+        // Clear
         this.score = 0;
+        this.getCharPots().clear();
         
         // Add score from potentials
-        for (var potential : this.getPotentials().int2IntEntrySet()) {
+        for (var potential : this.getPotentials()) {
             var data = GameData.getPotentialDataTable().get(potential.getIntKey());
             if (data == null) continue;
             
+            // Add score
             this.score += data.getBuildScore(potential.getIntValue());
+            
+            // Add for character potential count
+            this.getCharPots().add(data.getCharId(), potential.getIntValue());
         }
         
         // Add score from sub note skills

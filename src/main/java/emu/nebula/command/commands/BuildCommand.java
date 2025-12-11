@@ -62,6 +62,9 @@ public class BuildCommand implements CommandHandler {
         // Add to star tower manager
         target.getStarTowerManager().getBuilds().put(build.getUid(), build);
         
+        // Save to database
+        build.save();
+        
         // Send package to player
         target.addNextPackage(NetMsgId.st_import_build_notify, build.toProto());
             
