@@ -1,20 +1,28 @@
 package emu.nebula.game.story;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import dev.morphia.annotations.Entity;
 import dev.morphia.annotations.Id;
+import dev.morphia.annotations.PostLoad;
 import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
 import emu.nebula.database.GameDatabaseObject;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
 import emu.nebula.game.player.PlayerManager;
+import emu.nebula.proto.PlayerData.PlayerInfo;
+import emu.nebula.proto.Public.Story;
+import emu.nebula.proto.StorySett.StorySettle;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import lombok.Getter;
+import us.hebi.quickbuf.RepeatedInt;
+import us.hebi.quickbuf.RepeatedMessage;
 
 @Getter
 @Entity(value = "story", useDiscriminator = false)
@@ -24,6 +32,10 @@ public class StoryManager extends PlayerManager implements GameDatabaseObject {
     
     private IntSet completedStories;
     private Int2IntMap completedSets;
+    private IntSet evidences;
+    
+    // Note: Story options are seperate from regular story ids to save database space, since most stories do not have options
+    private Map<Integer, StoryOptionLog> options;
     
     @Deprecated // Morphia only
     public StoryManager() {
@@ -35,6 +47,8 @@ public class StoryManager extends PlayerManager implements GameDatabaseObject {
         this.uid = player.getUid();
         this.completedStories = new IntOpenHashSet();
         this.completedSets = new Int2IntOpenHashMap();
+        this.evidences = new IntOpenHashSet();
+        this.options = new HashMap<>();
         
         this.save();
     }
@@ -51,14 +65,21 @@ public class StoryManager extends PlayerManager implements GameDatabaseObject {
         return false;
     }
 
-    public PlayerChangeInfo settle(IntList list) {
+    public PlayerChangeInfo settle(RepeatedMessage<StorySettle> list, RepeatedInt evidences) {
         // Player change info
-        var changes = new PlayerChangeInfo();
+        var change = new PlayerChangeInfo();
         
-        for (int id : list) {
+        // Handle regular story
+        for (var settle : list) {
+            // Get id
+            int id = settle.getIdx();
+            
             // Get story data
             var data = GameData.getStoryDataTable().get(id);
             if (data == null) continue;
+            
+            // Settle options (Must be before the completion check as we need to do the same story multiple times to get all the endings)
+            this.settleOptions(settle);
             
             // Check if we already completed the story
             if (this.getCompletedStories().contains(id)) {
@@ -69,14 +90,61 @@ public class StoryManager extends PlayerManager implements GameDatabaseObject {
             this.getCompletedStories().add(id);
             
             // Add rewards
-            this.getPlayer().getInventory().addItems(data.getRewards(), changes);
+            this.getPlayer().getInventory().addItems(data.getRewards(), change);
             
             // Save to db
             Nebula.getGameDatabase().addToSet(this, this.getPlayerUid(), "completedStories", id);
         }
         
+        // Handle evidences
+        for (int id : evidences) {
+            // Verify that evidence id exists
+            var data = GameData.getStoryEvidenceDataTable().get(id);
+            if (data == null) continue;
+            
+            // Sanity check
+            if (this.getEvidences().contains(id)) {
+                continue;
+            }
+            
+            // Save to db
+            Nebula.getGameDatabase().addToSet(this, this.getPlayerUid(), "evidences", id);
+        }
+        
         // Complete
-        return changes;
+        return change;
+    }
+    
+    private void settleOptions(StorySettle settle) {
+        // Init variables
+        boolean changed = false;
+        StoryOptionLog log = null;
+        
+        // Update
+        if (settle.hasMajor()) {
+            if (log == null) {
+                log = getOptions().computeIfAbsent(settle.getIdx(), idx -> new StoryOptionLog());
+            }
+            
+            if (log.settleMajor(settle.getMajor())) {
+                changed = true;
+            }
+        }
+        
+        if (settle.hasPersonality()) {
+            if (log == null) {
+                log = getOptions().computeIfAbsent(settle.getIdx(), idx -> new StoryOptionLog());
+            }
+            
+            if (log.settlePersonality(settle.getPersonality())) {
+                changed = true;
+            }
+        }
+        
+        // Save to database if we changed anything
+        if (changed) {
+            Nebula.getGameDatabase().update(this, this.getPlayerUid(), "options." + settle.getIdx(), log);
+        }
     }
 
     public PlayerChangeInfo settleSet(int chapterId, int sectionId) {
@@ -105,5 +173,48 @@ public class StoryManager extends PlayerManager implements GameDatabaseObject {
         
         // Complete
         return changes;
+    }
+    
+    // Proto
+    
+    public void encodePlayerInfo(PlayerInfo proto) {
+        var story = proto.getMutableStory();
+        
+        for (int storyId : this.getCompletedStories()) {
+            var storyProto = Story.newInstance()
+                    .setIdx(storyId);
+            
+            var storyOptions = this.getOptions().get(storyId);
+            if (storyOptions != null) {
+                storyOptions.encodeStoryProto(storyProto);
+            }
+            
+            story.addStories(storyProto);
+        }
+        
+        for (int id : this.getEvidences()) {
+            story.addEvidences(id);
+        }
+    }
+    
+    // Database fixes
+    
+    @PostLoad
+    public void onLoad() {
+        boolean save = false;
+        
+        if (this.evidences == null) {
+            this.evidences = new IntOpenHashSet();
+            save = true;
+        }
+        
+        if (this.options == null) {
+            this.options = new HashMap<>();
+            save = true;
+        }
+        
+        if (save) {
+            this.save();
+        }
     }
 }

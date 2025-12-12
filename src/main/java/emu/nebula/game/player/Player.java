@@ -45,7 +45,6 @@ import emu.nebula.proto.Public.Friend;
 import emu.nebula.proto.Public.HonorInfo;
 import emu.nebula.proto.Public.NewbieInfo;
 import emu.nebula.proto.Public.QuestType;
-import emu.nebula.proto.Public.Story;
 import emu.nebula.proto.Public.WorldClass;
 import emu.nebula.proto.Public.WorldClassRewardState;
 import emu.nebula.util.Utils;
@@ -931,14 +930,7 @@ public class Player implements GameDatabaseObject {
         acc.addNewbies(NewbieInfo.newInstance().setGroupId(GameConstants.INTRO_GUIDE_ID).setStepId(-1));
         
         // Story
-        var story = proto.getMutableStory();
-        
-        for (int storyId : this.getStoryManager().getCompletedStories()) {
-            var storyProto = Story.newInstance()
-                    .setIdx(storyId);
-            
-            story.addStories(storyProto);
-        }
+        this.getStoryManager().encodePlayerInfo(proto);
         
         // Add titles
         for (int titleId : this.getInventory().getTitles()) {
@@ -954,7 +946,7 @@ public class Player implements GameDatabaseObject {
         }
         
         // Quests
-        this.getQuestManager().encodeProto(proto);
+        this.getQuestManager().encodePlayerInfo(proto);
         
         // Add dictionary tabs
         for (var dictionaryData : GameData.getDictionaryTabDataTable()) {
@@ -973,7 +965,7 @@ public class Player implements GameDatabaseObject {
         }
         
         // Add progress
-        this.getProgress().encodeProto(proto);
+        this.getProgress().encodePlayerInfo(proto);
         
         // Handbook
         proto.addHandbook(this.getCharacters().getCharacterHandbook());

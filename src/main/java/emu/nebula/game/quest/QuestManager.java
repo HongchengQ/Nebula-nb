@@ -312,7 +312,7 @@ public class QuestManager extends PlayerManager implements GameDatabaseObject {
     
     // Serialization
     
-    public void encodeProto(PlayerInfo proto) {
+    public void encodePlayerInfo(PlayerInfo proto) {
         var quests = proto.getMutableQuests();
         
         for (var quest : this.getQuests().values()) {
