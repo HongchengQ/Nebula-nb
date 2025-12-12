@@ -4,6 +4,8 @@ A work in progress game server emulator for a certain anime game. Most features 
 
 For any extra support, questions, or discussions, check out our [Discord](https://discord.gg/cskCWBqdJk).
 
+Latest nightly compiled server jar: [Nightly](https://nightly.link/Melledy/Nebula/workflows/gradle/main/Nebula-Nightly.zip)
+
 ### Notable features
 - Basic profile features
 - Character system
@@ -44,7 +46,7 @@ You may need to change the data version when switching regions. The `customDataV
 * [MongoDB 4.0+](https://www.mongodb.com/try/download/community)
 
 ### Compiling the server
-1. Open your system terminal, and compile the server with `./gradlew jar`
+1. Open your system terminal, and compile the server with `./gradlew jar` (If you downloaded the server jar from the Nightly link, you can skip this step)
 2. Create a folder named `resources` in your server directory
 3. Download the `bin`, `language` folders from a repository with [datamined game data](https://github.com/Hiro420/StellaSoraData) and place them into your resources folder.
 4. Run the server with `java -jar Nebula.jar` from your system terminal. This server comes with a built-in internal MongoDB server for its database, so no Mongodb installation is required. However, it is highly recommended to install Mongodb anyway. 
