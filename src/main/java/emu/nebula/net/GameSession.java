@@ -10,6 +10,7 @@ import emu.nebula.Nebula;
 import emu.nebula.game.account.Account;
 import emu.nebula.game.account.AccountHelper;
 import emu.nebula.game.player.Player;
+import emu.nebula.proto.Pb.Platform;
 import emu.nebula.proto.Public.MailState;
 import emu.nebula.proto.Public.Nil;
 import emu.nebula.util.AeadHelper;
@@ -24,7 +25,10 @@ public class GameSession {
     private String token;
     private Account account;
     private Player player;
+    
+    // Details
     private String ipAddress;
+    private int platform;
 
     // Crypto
     private int encryptMethod; // 0 = gcm, 1 = chacha20
@@ -38,6 +42,7 @@ public class GameSession {
     private long lastActiveTime;
 
     public GameSession() {
+        this.platform = -1;
         this.updateLastActiveTime();
     }
 
@@ -74,6 +79,15 @@ public class GameSession {
         return this.player != null;
     }
 
+    public void setPlatform(int platform) {
+        this.platform = platform;
+    }
+    
+    public String getPlatformName() {
+        var platform = Platform.forNumber(this.getPlatform());
+        return platform != null ? platform.getName() : "Unknown";
+    }
+    
     // Encryption
 
     public void setClientKey(RepeatedByte key) {

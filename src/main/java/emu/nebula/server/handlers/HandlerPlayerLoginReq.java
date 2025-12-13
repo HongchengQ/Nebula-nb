@@ -50,6 +50,9 @@ public class HandlerPlayerLoginReq extends NetHandler {
             var banInfo = banModule.getPlayerBanInfo(session.getPlayer().getUid());
             return session.encodeMsg(NetMsgId.player_login_failed_ack, banInfo.toProto());
         }
+        
+        // Set platform
+        session.setPlatform(req.getPlatformValue());
 
         // Regenerate session token because we are switching encrpytion method
         Nebula.getGameContext().generateSessionToken(session);
