@@ -152,6 +152,10 @@ public class StarTowerPotentialCase extends StarTowerBaseCase {
         
         for (var potential : this.getPotentials()) {
             select.addInfos(potential.toProto());
+            
+            if (potential.getLevel() > 1) {
+                select.addLuckyIds(potential.getId());
+            }
         }
         
         if (this.canReroll()) {
